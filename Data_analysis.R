@@ -545,17 +545,64 @@ colnames(matam_tax) <- c("Domain", "Phylum", "Class", "Order", "Family", "Genus"
 rownames(matam_tax) <- paste0("OTU_", 1:nrow(matam_tax))
 
 #gather sample data
-sample_mapping_data <- import_qiime_sample_data("E:/hazen_metagenome/sample_data.csv")
-microprobe_data <- read.csv("E:/hazen_metagenome/microprobes.csv",sep="\t")
+sample_mapping_data <- import_qiime_sample_data("E:/hazen_metagenome/processed_files/sample_data.csv")
+microprobe_data <- read.csv("E:/hazen_metagenome/processed_files/microprobes.csv",sep="\t")
 microprobe_data <- transform(microprobe_data, bin = cut(Depth.mm, breaks = seq(0,35,by=5), include.lowest = T))
 microprobe_data_means <- ddply(microprobe_data, .(Core,bin), numcolwise(median))[-c(1:3)]
 microprobe_data_means <- cbind(microprobe_data_means, bin=rep(unique(microprobe_data$bin),2))
 microprobe_data_sds <- ddply(microprobe_data, .(Core,bin), numcolwise(sd))[,-c(1:3)]
+orig_microprobe_data <- microprobe_data_means
+orig_microprobe_sds <-  microprobe_data_sds
 microprobe_data_means <- microprobe_data_means[c(1,3,5,8,11,14),-length(microprobe_data_means)]
 microprobe_data_means <- mefa:::rep.data.frame(microprobe_data_means, each = 3)
 sample_mapping_data <- cbind(sample_mapping_data[,-1], microprobe_data_means)
 sample_mapping_data$Sample <- factor(sample_mapping_data$Sample)
 sample_mapping_data$O2.mgL[which(sample_mapping_data$O2.mgL < 0)] <- 0
+
+#plot chemical data
+chemistry_data <- read.csv("E:/hazen_metagenome/processed_files/chemistry_data.csv", sep="\t")
+chemistry_data$Depth.cm <- factor(chemistry_data$Depth.cm)
+chemistry_sds <- data.frame(cbind(chemistry_data[1:2], matrix(NA, ncol=5, nrow=14)))
+colnames(chemistry_sds) <- colnames(chemistry_data)
+chemistry_data <- cbind(chemistry_data, orig_microprobe_data[-4])
+chemistry_data$O2.mgL[which(chemistry_data$O2.mgL < 0)] <- 0
+chemistry_sds <- cbind(chemistry_sds, orig_microprobe_sds)
+
+#transform scales for the plot
+chemistry_data$O2.mgL <- chemistry_data$O2.mgL*(450/10)
+chemistry_data$pH <- chemistry_data$pH*(450/10)
+chemistry_data$TDP.mgL <- chemistry_data$TDP.mgL*(450/60)
+chemistry_data$SO42.mgL <- chemistry_data$SO42.mgL*(450/60)
+chemistry_data$Cl.mgL <- chemistry_data$Cl.mgL*1000
+
+chemistry_sds$O2.mgL <-chemistry_sds$O2.mgL*(450/10)
+chemistry_sds$pH <- chemistry_sds$pH*(450/10)
+chemistry_sds$TDP.mgL <- chemistry_sds$TDP.mgL*(450/60)
+chemistry_sds$SO42.mgL <- chemistry_sds$SO42.mgL*(450/60)
+chemistry_sds$Cl.mgL <- chemistry_sds$Cl.mgL*1000
+
+chemistry_data_plot <- merge(melt(chemistry_data), melt(chemistry_sds), by = c("Site", "variable", "Depth.cm"), all = T)
+#chemistry_data_plot$Depth.cm <- factor(sample_data_plot$Depth.cm, levels = rev(levels(sample_data_plot$Depth.cm)))
+chemistry_data_plot$sdmin <- replace(chemistry_data_plot$value.x-chemistry_data_plot$value.y, chemistry_data_plot$value.x-chemistry_data_plot$value.y < 0, 0)
+chemistry_data_plot$sdmax <- chemistry_data_plot$value.x+chemistry_data_plot$value.y
+chemistry_data_plot$Depth.cm <- factor(chemistry_data_plot$Depth.cm, levels = rev(levels(chemistry_data_plot$Depth.cm)))
+
+chemistry_palette=c("#d23416",
+                    "#27a720",
+                    "#a31faa",
+                    "#00a376",
+                    "#e80060",
+                    "royalblue1",
+                    "#46499d",
+                    "#000000")
+
+image <- ggplot(chemistry_data_plot, aes(x=Depth.cm, y=value.x, group=Site)) + geom_point(aes(fill = variable, color = variable), shape = 18, size=7, alpha = 0.5) + 
+  facet_grid(Site~., scales="free_y", space="free_y") + 
+  geom_errorbar(aes(ymin=sdmin, ymax=sdmax, color = variable), width = 0.5) + coord_flip() + scale_y_continuous(breaks = seq(0,450,100), limits = c(0,450)) +
+  scale_color_manual(values = chemistry_palette) + ggtitle("Geochemistry") + xlab("Depth from sediment surface (cm)") + 
+  theme(axis.text.y = element_text(hjust = 1, size = 22), panel.spacing = unit(2, "lines"), strip.text.y = element_blank(), axis.title.x = element_blank(), legend.title = element_blank(), 
+        legend.position="bottom", plot.margin = unit(c(0.8,0.5,6.2,0.5), "lines"), plot.title = element_text(size=28, hjust = 0.5))
+ggsave(file = "E:/hazen_metagenome/results/geochemistry.svg", plot=image, units="cm", width=12, height=12, scale = 2)
 
 #construct phyloseq objects
 #metaphlan2 <- phyloseq(otu_table(metaphlan2_data, taxa_are_rows = T), sample_data(sample_mapping_data))
@@ -876,9 +923,6 @@ cluster_palette <- c("#03ff00",
                      "#e65141",
                      "#9800ff")
 
-
-
-
 dataset_names <- c("matam", "matam_func", "RP_MAG", "kegg", "metacyc")
 rtsne_sample_data <- sample_data(matam)
 rtsne_sample_names <- sample_names(matam)
@@ -1041,6 +1085,7 @@ genomes_qa_lineage <- read.table("E:/hazen_metagenome/processed_files/tree_qa_li
 genomes_qa <- merge(genomes_qa, genomes_qa_lineage[,-c(12:ncol(genomes_qa_lineage))], by="Bin.Id")
 genomes_qa$Bin.Id <- gsub("-contigs", "", genomes_qa$Bin.Id)
 genomes_qa <- genomes_qa[order(genomes_qa$Bin.Id),]
+genomes_qa_over50 <- genomes_qa[which(as.numeric(as.character(genomes_qa$Completeness)) > 50),]
 genomes_qa <- genomes_qa[which(genomes_qa$Bin.Id %in% taxa_names(RP_MAG_phylo)),]
 genomes <- as.list(as.data.frame(t(genomes_qa[,c(13:15,21:24)])))
 names(genomes) <- genomes_qa$Bin.Id
@@ -1760,16 +1805,16 @@ names(longbranch_ncbi_genome_list_3) <- names(longbranch_ncbi_genomes[[1]])
 
 metacyc_processes <- merge(ncbi_genome_list_3$metacyc$processes, genome_list_3$metacyc$processes, by="process", all=T)
 metacyc_processes <- merge(metacyc_processes, longbranch_ncbi_genome_list_3$metacyc$processes, by="process", all=T)
-colnames(metacyc_processes) <- c("process", "NCBI", "MAGs", "NCBI_long_branches")
+colnames(metacyc_processes) <- c("process", "NCBI", "MAGs", "NCBI_long_branching")
 metacyc_processes <- merge(metacyc_processes, longbranch_genome_list_3$metacyc$processes, by="process", all=T)
-colnames(metacyc_processes)[5] <- "MAG_long_branches"
+colnames(metacyc_processes)[5] <- "MAG_long_branching"
 metacyc_processes <- metacyc_processes[match(as.character(ncbi_genome_list_3$metacyc$processes$process), metacyc_processes$process),]
 
 marker_processes <- merge(ncbi_genome_list_3$marker_genes$processes, genome_list_3$marker_genes$processes, by="process", all=T)
 marker_processes <- merge(marker_processes, longbranch_ncbi_genome_list_3$marker_genes$processes, by="process", all=T)
-colnames(marker_processes) <- c("process", "NCBI", "MAGs", "NCBI_long_branches")
+colnames(marker_processes) <- c("process", "NCBI", "MAGs", "NCBI_long_branching")
 marker_processes <- merge(marker_processes, longbranch_genome_list_3$marker_genes$processes, by="process", all=T)
-colnames(marker_processes)[5] <- "MAG_long_branches"
+colnames(marker_processes)[5] <- "MAG_long_branching"
 marker_processes <- marker_processes[match(as.character(ncbi_genome_list_3$marker_genes$processes$process), marker_processes$process),]
 
 all_processes <- rbind(metacyc_processes, marker_processes)
@@ -1779,11 +1824,11 @@ colnames(all_processes) <- gsub("_", " ", colnames(all_processes))
 process_levels <- rev(c("Cell structure biosynthesis","Fatty acid and lipid biosynthesis","Amino acid biosynthesis","Aromatic compound biosynthesis",
   "Secondary metabolite biosynthesis","Antibiotic biosynthesis","Other biosynthesis","Nitrogen assimilation",
   "Selenate reduction","Amino acid degradation","Carbohydrate degradation","Aromatic compound degradation",
-  "Secondary metabolite degradation","Chlorinated compound degradation","Alcohol degradation","DMSO degradation",
+  "Secondary metabolite degradation","Chlorinated compound degradation","Glycerol degradation","DMSO degradation",
   "Phosphate degradation","Organic matter degradation","Hydrogen production","Phototrophy","Autotrophic CO2 assimilation",
   "Fermentation","Energy generation","Energy conservation","Methylotrophic metabolism","Metabolic pathway",
   "N fixation","Nitrification bacteria","Denitrification","DNRA","DNRA Polysulfide reduction",
-  "Sulfur compound reduction","Sulfite reduction to sulfide reversible",
+  "Sulfur compound reduction","Sulfite reduction to sulfide reversible", "Sulfite reduction to sulfide",
   "Sulfur compound oxidation","Sulfide oxidation","Sulfite oxidation to sulfate",
   "Phosphorus uptake","Polyphosphate synthesis","Mercury resistance","Mercury methylation","Arsenic resistance",
   "Pb Zn resistance or homeostasis","Cd Pb resistance","Cd Co Cu Pb Zn resistance or homeostasis",
@@ -1793,8 +1838,24 @@ all_processes$process <- factor(all_processes$process, levels=process_levels)
 all_processes <- all_processes[order(all_processes$process),]
 all_processes[,2:5] <- sweep(all_processes[,2:5], 2, c(2486, 55,53,18), FUN = '/')
 all_processes[,2:5] <- round(all_processes[,2:5]*100, 0)
-all_processes$category <- c(rep("Metal homeostasis", 8), rep("Biogeochemical cycles", 12), rep("Energy metabolism", 8), rep("Degradation", 9), rep("Biosynthesis", 9))
+all_processes$category <- c(rep("Metal homeostasis", 8), rep("Biogeochemical cycles", 13), rep("Energy metabolism", 8), rep("Degradation", 9), rep("Biosynthesis", 9))
 all_processes$category <- factor(all_processes$category, levels=rev(unique(all_processes$category)))
+
+#chi-squared test and plot a map
+all_processes_chi <- all_processes[2:5]
+rownames(all_processes_chi) <- all_processes$process
+all_processes_chi[is.na(all_processes_chi)] <- 0
+cisq_test_all_processes <- chisq.test(all_processes_chi)
+contrib_all_processes <- 100*cisq_test_all_processes$residuals^2/cisq_test_all_processes$statistic
+#subset to processes that contribute more than equally (100 % / 47 processes) to the total chi-squared score
+most_important_processes <- cisq_test_all_processes$residuals[rowSums(round(contrib_all_processes,3)) > 2.13,]
+levels(rownames(most_important_processes)) <- process_levels
+most_important_processes <- melt(most_important_processes)
+image <- ggplot(data = most_important_processes, aes(x=Var1, y=Var2, fill=value)) + geom_tile(color="white") + coord_flip() + 
+  scale_fill_gradient2("Pearson residual", low = "blue", mid = "white", high = "red", midpoint = 0) +
+  theme(axis.text.y = element_text(size = 16), strip.text.y = element_text(angle=0, hjust=0), axis.text.x = element_text(angle=45, hjust=1), panel.border = element_blank(), 
+        axis.ticks.y = element_blank(), axis.title.y = element_blank(), axis.title.x = element_blank(), plot.title = element_text(size=28, hjust = 0.5))
+ggsave(file = "E:/hazen_metagenome/results/chi_squared_heatmap.svg", plot=image, units="cm", width=10, height=12, scale=2.5)
 
 all_processes_melt <- melt(all_processes)
 all_processes_melt$variable <- factor(all_processes_melt$variable, levels=rev(colnames(all_processes)[2:5]))
@@ -1802,9 +1863,41 @@ all_processes_melt$variable <- factor(all_processes_melt$variable, levels=rev(co
 
 image <- ggplot(all_processes_melt, aes(y=value, x=process, fill=variable)) + geom_col(position = position_dodge2(width = 0.75, preserve = "single"))  +#geom_point(aes(size=value), color="steelblue", shape=1, stroke=3) +
   coord_flip() + scale_fill_brewer(name="Collection",palette="Paired", guide = guide_legend(reverse = TRUE)) + 
-  facet_wrap(.~category, nrow=5, scales="free_y") + ylab("Present in % of genomes") +
-  theme(axis.text.y = element_text(size = 16), panel.border = element_blank(), axis.ticks.y = element_blank(), axis.title.y = element_blank(), plot.title = element_text(size=28, hjust = 0.5))
+  facet_grid(category~., scales="free", space="free") + ylab("Present in % of genomes") +
+  theme(axis.text.y = element_text(size = 16), strip.text.y = element_text(angle=0, hjust=0), panel.border = element_blank(), 
+        axis.ticks.y = element_blank(), axis.title.y = element_blank(), plot.title = element_text(size=28, hjust = 0.5),
+        legend.position = "bottom")
 ggsave(file = "E:/hazen_metagenome/results/all_processes_bars.svg", plot=image, units="cm", width=10, height=12, scale=3)
+
+#which MAGs take part in which processes
+MAG_metacycs <- lapply(genomes2, '[[', 4)
+MAG_markers <- lapply(genomes2, '[[', 7)
+processes_of_interest <- c("sulfate reduction V", "sulfate activation for sulfonation", "sulfoacetaldehyde degradation I", "ammonia assimilation", "N_fixation", "Denitrification", "Nitrification_bacteria", 
+                           "Sulfite_reduction_to_sulfide", "Sulfide_oxidation", "Sulfite_oxidation_to_sulfate", "Mercury_resistance",  "DNRA_Polysulfide_reduction")
+process_tax_list <- list(NULL)
+for (i in 1:4) {
+  process_tax_list[[i]] <- do.call(rbind, lapply(genomes2[which(mapply(function(x) any(grepl(processes_of_interest[i],x$metacyc_pathway)), MAG_metacycs))], '[[', 2))
+}
+for (i in 5:length(processes_of_interest)) {
+  process_tax_list[[i]] <- do.call(rbind, lapply(genomes2[which(mapply(function(x) any(grepl(processes_of_interest[i],x$process)), MAG_markers))], '[[', 2))
+}
+process_tax_list[[length(process_tax_list)+1]] <- do.call(rbind, lapply(genomes2[which(mapply(function(x) any(grepl("nrfH",x$marker_gene)), MAG_markers))], '[[', 2))
+process_tax_list[[length(process_tax_list)+1]] <- do.call(rbind, lapply(genomes2[which(mapply(function(x) any(grepl("nosZ",x$marker_gene)), MAG_markers))], '[[', 2))
+process_tax_list[[length(process_tax_list)+1]] <- do.call(rbind, lapply(genomes2[which(mapply(function(x) any(grepl("nirK",x$marker_gene)), MAG_markers))], '[[', 2))
+names(process_tax_list) <- c(processes_of_interest, "DNRA", "Nitrous oxide reduction", "Nitrite reduction to nitric oxide")
+process_tax_list <- bind_rows(process_tax_list, .id="process")
+process_tax_list <- merge(process_tax_list, data.frame(otu_table(RP_MAG_phylo)), by.x="label", by.y="row.names", all.x=T)
+process_tax_list$mean <- rowMeans(as.matrix(process_tax_list[10:15]))
+process_tax_list <- process_tax_list[-c(10:15)]
+process_tax_list <- process_tax_list[order(process_tax_list$process, process_tax_list$mean, decreasing =T),]
+write.csv(process_tax_list, "E:/hazen_metagenome/results/processes_of_interest_taxa.csv", quote=F, row.names = F)
+process_phylum_list <- process_tax_list
+process_phylum_list$Phylum <- as.character(process_phylum_list$Phylum)
+process_phylum_list$Phylum[which(process_phylum_list$Phylum %in% "Proteobacteria")] <- as.character(process_phylum_list$Class[which(process_phylum_list$Phylum %in% "Proteobacteria")])
+process_phylum_list <- aggregate(mean~process+Phylum, process_phylum_list, mean)
+process_phylum_list <- process_phylum_list[order(process_phylum_list$process, process_phylum_list$mean, decreasing = T),]
+write.csv(process_phylum_list, "E:/hazen_metagenome/results/processes_of_interest_phyla.csv", quote=F, row.names = F)
+
 # checkm_model_shared <- list(NULL)
 # checkm_model_present <- list(NULL)
 # for (i in 1:length(variables)){
