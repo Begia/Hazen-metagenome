@@ -256,36 +256,6 @@ RP_annotations <- read.table("E:/hazen_metagenome/processed_files/ribosomal_prot
 colnames(RP_annotations) <- c("Pfam", "RP")
 
 for (RP in RP_annotations$RP) {
-<<<<<<< HEAD
-  alignment <- read.alignment(paste0("E:/hazen_metagenome/processed_files/ribosomal_proteins/", RP, "_mafft_translatorx.nt_ali.fasta"), format="fasta")
-  
-  #calculate the codons at each position in frame +1
-  alignment_codons <- list(NULL)
-  for (i in 1:alignment$nb) {
-    alignment_codons[[i]] <- splitseq(s2c(alignment$seq[[i]]), frame=0, word=3)
-  }
-  alignment_codons <- do.call(rbind, alignment_codons)
-  
-  #calculate consensus codons (most common) at each position
-  consensus_codons <- apply(alignment_codons, 2, function(x) names(which.max(table(x))))
-  
-  #check which positions have a gap as the most common codon, but limit the tails of sequences from the examined region
-  gap_columns <- which(grepl("---", consensus_codons[min(which(!grepl("---", consensus_codons))):max(which(!grepl("---", consensus_codons)))]))
-  #fix the numbering of the gap columns
-  gap_columns <- gap_columns + min(which(!grepl("---", consensus_codons)))
-  
-  #find sequences that are bridging these "gap positions"
-  bad_sequences <- list(NULL)
-  i <- 1
-  for (co in gap_columns) {
-    bad_sequences[[i]] <- alignment$nam[which(!grepl("---", alignment_codons[,co]))]
-    i <- i+1
-  }
-  
-  #write out the bridging sequences for gaps which are bridged by < 10% of all sequences 
-  bridging_sequences <- unique(unlist(bad_sequences[which(lengths(bad_sequences) <= 0.001*alignment$nb)]))
-  write.table(bridging_sequences, paste0("E:/hazen_metagenome/processed_files/ribosomal_proteins/", RP, "_bridging_sequences.list"), row.names=F, col.names=F, quote=F)
-=======
 alignment <- read.alignment(paste0("E:/hazen_metagenome/processed_files/ribosomal_proteins/", RP, "_mafft_translatorx.nt_ali.fasta"), format="fasta")
 
 #calculate the codons at each position in frame +1
@@ -314,7 +284,6 @@ for (co in gap_columns) {
 #write out the bridging sequences for gaps which are bridged by < 10% of all sequences 
 bridging_sequences <- unique(unlist(bad_sequences[which(lengths(bad_sequences) <= 0.001*alignment$nb)]))
 write.table(bridging_sequences, paste0("E:/hazen_metagenome/processed_files/ribosomal_proteins/", RP, "_bridging_sequences.list"), row.names=F, col.names=F, quote=F)
->>>>>>> 25532773ff3d9301834e12709d6fd498157ab525
 }
 
 # following code run as arrays at CSC cluster
@@ -345,9 +314,6 @@ write.table(bridging_sequences, paste0("E:/hazen_metagenome/processed_files/ribo
 # tr -s "\t" "\n" < ${RP}_trimal_treeshrink/${RP}_trimal_shrunk_RS_0.01.txt > ${RP}_trimal_treeshrink/${RP}_outliers.list
 # faSomeRecords -exclude ${RP}_trimal_unique.fasta ${RP}_trimal_treeshrink/${RP}_outliers.list ${RP}_trimal_v2.fasta
 # FastTreeMP -gtr -gamma -nt ${RP}_trimal_v2.fasta > ${RP}_trimal_v2.tre
-
-#plot old and new trees together in one figure
-#TO DO!!!!!
 
 
 #concatenate alignments
@@ -439,87 +405,6 @@ ncbi_genomes_taxonomy$source <- ifelse(grepl("Bin_", ncbi_genomes_taxonomy$label
 # ncbi_genomes_otu_table <- data.frame(row.names=rownames(ncbi_genomes_taxonomy), NCBI=rep(0, nrow(ncbi_genomes_taxonomy)), metagenome=rep(0, nrow(ncbi_genomes_taxonomy)))
 # ncbi_genomes_otu_table$NCBI[which(grepl("GCA", rownames(ncbi_genomes_otu_table)))] <- 1
 # ncbi_genomes_otu_table$metagenome[which(grepl("Bin", rownames(ncbi_genomes_otu_table)))] <- 1
-<<<<<<< HEAD
-# 
-# #construct phyloseq object
-# ncbi_genomes_taxonomy <- ncbi_genomes_taxonomy[-8]
-# ncbi_genomes <- phyloseq(otu_table(ncbi_genomes_otu_table, taxa_are_rows = T), tax_table(as.matrix(ncbi_genomes_taxonomy)), phy_tree(concatenated_tree))
-
-#plot a tree with ggtree
-new_ggtree <- as_tibble(phy_tree(concatenated_tree))
-all_taxonomy <- ncbi_genomes_taxonomy
-all_taxonomy$fulltax <- apply(all_taxonomy[,3:8], 1, paste, collapse = "_")
-all_taxonomy$fulltax <- gsub("NA_", "", all_taxonomy$fulltax)
-new_ggtree <- full_join(new_ggtree, all_taxonomy, by="label")
-
-#change the phylum grouping to metagenome for MAGS and to class level for Proteobacteria
-new_ggtree$Phylum_grp <- as.character(new_ggtree$Phylum)
-new_ggtree$Phylum_grp[grepl("metagenome", new_ggtree$source)] <- "metagenome"
-new_ggtree$Phylum_grp[new_ggtree$Phylum_grp %in% "Proteobacteria"] <- as.character(new_ggtree$Class[new_ggtree$Phylum_grp %in% "Proteobacteria"])
-
-new_ggtree_groupinfo <- split(new_ggtree$label, new_ggtree$Phylum_grp)
-new_ggtree <- ggtree::groupOTU(new_ggtree, new_ggtree_groupinfo)
-
-new_ggtree2 <- as.treedata(new_ggtree)
-
-treepalette2 <- treepalette
-treepalette2[which(levels(new_ggtree$group) == "metagenome")] <- "black"
-treepalette2[which(levels(new_ggtree$group) == "0")] <- "darkgrey"
-
-phylum_to_color_map <- data.frame(Phylum=levels(new_ggtree$group), color=treepalette2)
-
-#node_annotation <- read.csv("E:/hazen_metagenome/processed_files/ribosomal_proteins/RP_tree_node_annotation.csv", quote="", sep="\t")
-
-image <- ggtree(new_ggtree2, aes(color=group), ladderize = T, size=0.1) + geom_text2(aes(subset=!isTip, label=paste0(label, "_", node)), hjust=-.3, size=0.2) + 
-  geom_tiplab(aes(label=new_ggtree$fulltax), size=0.2) + 
-  geom_tippoint(aes(alpha=new_ggtree$source), color="red", shape=20, size=0.2) + 
-  scale_alpha_manual(values=c("1", "0")) +
-  geom_treescale(linesize=0.2, fontsize=1, offset=1) +
-  scale_color_manual(values=c(treepalette2))
-
-ggsave(file = "E:/hazen_metagenome/results/CPR_phyla_nodes_supports.pdf", plot=image, units="cm", width=15, height=70, limitsize = F, scale=2.5)
-
-# nodestoplot <- new_ggtree[c("node", "label")]
-# nodestoplot <- nodestoplot[which(is.na(new_ggtree$source)),]
-# nodestoplot <- nodestoplot[-which(nodestoplot$node %in% node_annotation$node),]
-
-
-# image <- ggtree(new_ggtree2, aes(color=group), ladderize = T, size=0.1) + geom_text2(aes(subset=!isTip & !(node %in% node_annotation$node), label=label), hjust=-.3, size=0.2) + 
-#   geom_tiplab(aes(label=new_ggtree$fulltax), size=0.2) + 
-#   geom_tippoint(aes(alpha=new_ggtree$source), color="red", shape=20, size=0.2) + 
-#   scale_alpha_manual(values=c("1", "0")) +
-#   geom_treescale(linesize=0.2, fontsize=1, offset=1) +
-#   scale_color_manual(values=c(treepalette2))
-# 
-# for (i in 1:length(node_annotation$node)) {
-#   image <- collapse(image, node=node_annotation$node[i])
-#   image <- image + geom_cladelabel(node=node_annotation$node[i], node_annotation$clade[i], fontsize=0.3, color="black")
-# }
-# 
-# image <- image + geom_point2(aes(subset=(node %in% node_annotation$node)), size=0.2, color="darkgrey")
-image <- ggtree(new_ggtree2, aes(color=group), ladderize = T, size=0.1) + #geom_text2(aes(subset=!isTip, label=label), hjust=-.3, size=0.2) + 
-  geom_nodelab(aes(subset=(!isTip & as.numeric(label) > 0.75)), label="\u25CF", size=2, color="black", hjust=6) + 
-  geom_tiplab(aes(label=new_ggtree$fulltax), size=0.2) + 
-  geom_tippoint(aes(alpha=new_ggtree$source), color="red", shape=20, size=0.2) + 
-  scale_alpha_manual(values=c("1", "0")) +
-  geom_treescale(linesize=0.2, fontsize=1, offset=1) +
-  scale_color_manual(values=c(treepalette2))
-
-ggsave(file = "E:/hazen_metagenome/results/CPR_phyla_supports.pdf", plot=image, units="cm", width=15, height=80, limitsize = F, scale=2.5, device=cairo_pdf)
-
-image <- ggtree(new_ggtree2, layout="circular", aes(color=group), ladderize = T, size=0.1) + 
-  #geom_nodelab(aes(subset=(!isTip & as.numeric(label) > 0.9)), label="\u25CF", size=0.2, hjust=0, color="black") + 
-  geom_tippoint(aes(alpha=new_ggtree$source), color="red", shape=18, size=0.2) + 
-  scale_alpha_manual(values=c("1", "0")) +
-  geom_treescale(linesize=0.2, fontsize=1, offset=1, x=-2) +
-  scale_color_manual(values=c(treepalette2))
-
-# for (i in 1:length(node_annotation$node)) {
-#   image <- collapse(image, node=node_annotation$node[i])
-#   image <- image + geom_cladelabel(node=node_annotation$node[i], node_annotation$clade[i], fontsize=0.3, color="black")
-# }
-# 
-=======
 # 
 # #construct phyloseq object
 # ncbi_genomes_taxonomy <- ncbi_genomes_taxonomy[-8]
@@ -599,7 +484,6 @@ image <- ggtree(new_ggtree2, layout="circular", aes(color=group), ladderize = T,
 #   image <- image + geom_cladelabel(node=node_annotation$node[i], node_annotation$clade[i], fontsize=0.3, color="black")
 # }
 # 
->>>>>>> 25532773ff3d9301834e12709d6fd498157ab525
 # image <- image + geom_point2(aes(subset=(node %in% node_annotation$node)), size=0.2, color="darkgrey")
 image <- image + xlim(-0.3, NA)
 image <- image %>% scaleClade(11641, 0.25)
@@ -637,12 +521,9 @@ over_the_line <- branchlength_comparison[which(branchlength_comparison$branch.le
 over_the_line_MAG <- over_the_line[which(over_the_line$source %in% "metagenome"),]
 over_the_line_ncbi <- over_the_line[which(over_the_line$source %in% "repository"),]
 
-<<<<<<< HEAD
-# #read in the taxonomic metaphlan2/matam and functional humann2 data
-=======
 #chi-squared test
 longbranching_chisq <- data.frame(row.names=c("short", "long"), NCBI=c(3656,246), MAG=c(37,18))
-longbranching_chisq_test <- chisq.test(longbranching_chisq)
+longbranching_chisq_test <- chisq.test(longbranching_chisq, simulate.p.value = T, B = 1000)
 
 #calculate pairwise distances of the best NCBI matchest for the 2 unknown bins and plot a tree
 LH_MA_65_9_alignment <- read.alignment("E:/hazen_metagenome/processed_files/arb-silva.de_LH_MA_65_9.fasta", format="fasta")
@@ -694,7 +575,6 @@ image <- ggtree(LH_MA_57_9_ggtree2, aes(color=group), ladderize = T, size=0.5) +
 ggsave(file = "E:/hazen_metagenome/results/LH_MA_57_9_tree.svg", plot=image, units="cm", width=10, height=10, limitsize = F, scale=3)
 
 # #read in the taxonomic matam data
->>>>>>> 25532773ff3d9301834e12709d6fd498157ab525
 matam_raw <- read.csv("E:/hazen_metagenome/matam_contingency_samples_combined.txt", quote = "", sep = "\t")
 
 #matam 16S data
@@ -769,17 +649,10 @@ chemistry_palette=c("#d23416",
 image <- ggplot(chemistry_data_plot, aes(x=Depth.cm, y=value.x, group=Site)) + geom_point(aes(fill = variable, color = variable), shape = 18, size=7, alpha = 0.5) + 
   facet_grid(Site~., scales="free_y", space="free_y") + 
   geom_errorbar(aes(ymin=sdmin, ymax=sdmax, color = variable), width = 0.5) + coord_flip() + scale_y_continuous(breaks = seq(0,450,100), limits = c(0,450)) +
-<<<<<<< HEAD
-  scale_color_manual(values = chemistry_palette) + ggtitle("Geochemistry") + xlab("Depth from sediment surface (cm)") + 
-  theme(axis.text.y = element_text(hjust = 1, size = 22), panel.spacing = unit(2, "lines"), strip.text.y = element_blank(), axis.title.x = element_blank(), legend.title = element_blank(), 
-        legend.position="bottom", plot.margin = unit(c(0.8,0.5,6.2,0.5), "lines"), plot.title = element_text(size=28, hjust = 0.5))
-ggsave(file = "E:/hazen_metagenome/results/geochemistry.svg", plot=image, units="cm", width=12, height=12, scale = 2)
-=======
   scale_color_manual(values = chemistry_palette) + ggtitle("Physicochemical variability") + xlab("Depth from sediment surface (cm)") + 
   theme(axis.text.y = element_text(hjust = 1, size = 22), panel.spacing = unit(2, "lines"), strip.text.y = element_blank(), axis.title.x = element_blank(), legend.title = element_blank(), 
         legend.position="bottom", plot.margin = unit(c(0.8,0.5,6.2,0.5), "lines"), plot.title = element_text(size=28, hjust = 0.5))
 ggsave(file = "E:/hazen_metagenome/results/physicochemistry.svg", plot=image, units="cm", width=12, height=12, scale = 2)
->>>>>>> 25532773ff3d9301834e12709d6fd498157ab525
 
 #construct phyloseq objects
 #metaphlan2 <- phyloseq(otu_table(metaphlan2_data, taxa_are_rows = T), sample_data(sample_mapping_data))
@@ -841,7 +714,7 @@ write.table(otu_table, "E:/hazen_metagenome/matam_tax_table_qcd.txt", quote=F, s
 # python ~/bin/FAPROTAX_1.0/collapse_table.py -i ~/matti/Hazen_metagenome/matam_tax_table_qcd.biom -o ~/matti/Hazen_metagenome/matam_func_table.biom -g ~/bin/FAPROTAX_1.0/FAPROTAX_Hazen.txt --collapse_by_metadata 'taxonomy' --group_leftovers_as 'other' --out_group_overlaps ~/matti/Hazen_metagenome/matam_func_table_overlaps.txt --output_format_group_overlaps classical  -l ~/matti/Hazen_metagenome/matam_FAPROTAX.log --disable_group_set_operations --out_groups2records_table ~/matti/Hazen_metagenome/matam_func_table_groups.txt -v --force
 # biom convert -i ~/matti/Hazen_metagenome/matam_func_table.biom -o ~/matti/Hazen_metagenome/matam_func_table.txt --to-tsv
 
-func <- read.csv("E:/Hazen_metagenome/matam_func_table.txt",sep="\t",skip=1,row.names=1)
+func <- read.csv("E:/hazen_metagenome/matam_func_table.txt",sep="\t",skip=1,row.names=1)
 colnames(func) <- sample_order
 
 func <- phyloseq(otu_table(func,taxa_are_rows = T), sample_data(matam))
@@ -882,6 +755,19 @@ NMDS_data_matam <- data.frame(sample_data(matam))
 NMDS_data_matam$NMDS1 <- ordu_matam$points[ ,1]
 NMDS_data_matam$NMDS2 <- ordu_matam$points[ ,2]
 
+physchem_vectors <- data.frame(model = names(ef_matam$vectors$r))
+physchem_vectors <- cbind(physchem_vectors, scores(ef_matam, display="vectors"), pvalues=ef_matam$vectors$pvals)
+sig_physchem_vectors <- physchem_vectors[physchem_vectors$pvalues < 0.05,]
+nonsig_physchem_vectors <- physchem_vectors[physchem_vectors$pvalues > 0.05,]
+plot(ordu_matam)
+multiplier_matam <- ordiArrowMul(ef_matam)
+image <- ggplot(data = NMDS_data_matam, aes(NMDS1, NMDS2)) + geom_point(aes(color=factor(Sample), shape=factor(Site)), size = 5) + coord_fixed() + labs(color = "Sample") +
+  geom_segment(data=sig_physchem_vectors, aes(x=0, xend=NMDS1*multiplier_matam, y=0, yend=NMDS2*multiplier_matam), arrow = arrow(length = unit(0.5, "cm")), colour="black", size=1) +
+  geom_segment(data=nonsig_physchem_vectors, aes(x=0, xend=NMDS1*multiplier_matam, y=0, yend=NMDS2*multiplier_matam), arrow = arrow(length = unit(0.5, "cm")), colour="black", linetype="twodash", size=1) +
+  geom_text(data=physchem_vectors, aes(x=NMDS1*multiplier_matam+multiplier_matam*0.1, y=NMDS2*multiplier_matam+multiplier_matam*0.1, label=model),size=5)
+ggsave("E:/Hazen_metagenome/results/matam_ordi.svg", plot=image, units="mm", width=300, height=300)
+
+
 matam_func_data <- data.frame(otu_table(func))
 matam_func_distance <- vegdist(t(matam_func_data), distance = "bray")
 set.seed(42)
@@ -891,7 +777,6 @@ NMDS_data_matam_func <- data.frame(sample_data(func))
 NMDS_data_matam_func$NMDS1 <- ordu_matam_func$points[ ,1]
 NMDS_data_matam_func$NMDS2 <- ordu_matam_func$points[ ,2]
 
-ggplot(data = NMDS_data_matam, aes(NMDS1, NMDS2)) + geom_point(aes(color=factor(Sample), shape=factor(Site)), size = 5) + labs(color = "Sample")
 
 ggplot(data = NMDS_data_matam_func, aes(NMDS1, NMDS2)) + geom_point(aes(color=factor(Sample), shape=factor(Site)), size = 5) + labs(color = "Sample")
 
@@ -962,11 +847,7 @@ phylogeny <- c("Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species
 # checkm_tree$tip.label <- gsub("-contigs", "", checkm_tree$tip.label)
 new_RP_MAG_taxonomy <- read.table("E:/hazen_metagenome/processed_files/RP_MAGs_taxonomy.txt", sep="\t", header=T, na.strings=c("","NA"))
 rownames(new_RP_MAG_taxonomy) <- new_RP_MAG_taxonomy$label
-<<<<<<< HEAD
-new_RP_MAG_tree <- as_tibble(treeio::drop.tip(new_ggtree2, tip=new_ggtree$label[which(new_ggtree$source %in% "repository")]))
-=======
 new_RP_MAG_tree <- as_data_frame(treeio::drop.tip(new_ggtree2, tip=new_ggtree$label[which(new_ggtree$source %in% "repository")]))
->>>>>>> 25532773ff3d9301834e12709d6fd498157ab525
 new_RP_MAG_tree <- full_join(new_RP_MAG_tree %>% select(-(5:ncol(new_RP_MAG_tree))), new_RP_MAG_taxonomy, by="label")
 
 
@@ -976,23 +857,7 @@ rel_abundance_pathways <- rel_abundance_pathways[which(rel_abundance_pathways$bi
 for (i in 1:6) {
   rel_abundance_pathways[,i] <-  sapply(rel_abundance_pathways[,i], function(x) x <- x/sum(rel_abundance_pathways[,i])*100)
 }
-<<<<<<< HEAD
 
-
-sequencing <- read.csv("E:/hazen_metagenome/sample_sequencing_stats.csv",sep="\t")
-sequencing <- sequencing[-which(sequencing$sample %in% "total"),]
-sequencing <- sequencing[,-c(3,4)]
-sequencing$sample <- sample_order
-# sequencing$binned <- colSums(rel_abundances[[1]])*0.01*sequencing$n.reads
-# sequencing$quality.bins <- colSums(rel_abundance_pathways[,-7])*0.01*sequencing$n.reads
-sequencing <- reshape2::melt(sequencing)
-=======
->>>>>>> 25532773ff3d9301834e12709d6fd498157ab525
-
-image <- ggplot(sequencing, aes(x=factor(sample), y=value)) + geom_bar(stat="identity", color="black") + scale_x_discrete(limits=(sample_order)) + facet_wrap(~variable, scales="free") + 
-  theme(axis.text.y = element_text(hjust = 0, size = 22), panel.border = element_blank(), axis.ticks.y = element_blank(), axis.title.y = element_blank(), legend.position="bottom", plot.title = element_text(size=28, hjust = 0.5), axis.text.x = element_text(angle = 45, hjust = 1)) +
-  xlab("Sample") + ylab("Abundance (%)") + ggtitle("Sequencing statistics") + scale_y_continuous(labels = scales::comma)
-ggsave(file = "E:/hazen_metagenome/results/sequecing_statistics.svg", plot=image, units="mm", width=300, height=200)
 
 sequencing <- read.csv("E:/hazen_metagenome/sample_sequencing_stats.csv",sep="\t")
 sequencing <- sequencing[-which(sequencing$sample %in% "total"),]
@@ -1125,25 +990,6 @@ dataset_names <- c("matam", "matam_func", "RP_MAG", "kegg", "metacyc")
 rtsne_sample_data <- sample_data(matam)
 rtsne_sample_names <- sample_names(matam)
 for (i in 1:length(dataset_names)) {
-<<<<<<< HEAD
-  set.seed(42)
-  if (dataset_names[i] %in% "RP_MAG") {
-    rtsne_data <- data.frame(Rtsne(eval(parse(text = paste0(dataset_names[i], "_distance$RaoDis"))), is_distance = T, perplexity = 1.6)$Y)
-  } else {
-    rtsne_data <- data.frame(Rtsne(eval(parse(text = paste0(dataset_names[i], "_distance"))), is_distance = T, perplexity = 1.6)$Y)
-  }
-  rownames(rtsne_data) <- rtsne_sample_names
-  rtsne_data_clusters <- hdbscan(rtsne_data, xdist = vegdist(rtsne_data, "euclidean"), minPts = 2)
-  rtsne_data <- cbind(rtsne_data, cluster = rtsne_data_clusters$cluster, site = rtsne_sample_data$Site, depth = rtsne_sample_data$Depth.cm)
-  image <- ggplot(data = rtsne_data, aes(x = X1, y = X2)) + stat_ellipse(level = 0.68, aes(color = factor(cluster)), linetype = 2, size = 1.5) +
-    geom_point(aes(color = factor(cluster), fill = site, size = depth), shape = 21, stroke = 2) +
-    scale_colour_manual(name = "Cluster", values = cluster_palette) +
-    scale_size_continuous(range = c(2,6), name = "Sediment depth (cm)") +  scale_fill_manual(values = c("#910a80", #deep hole
-                                                                                                        "#a67e48" #snowgoose bay
-    ), name = "Site") +
-    guides(fill = guide_legend(override.aes = list(size = 4), order = 1), alpha = guide_legend(order = 2), color = guide_legend(override.aes = list(shape = 1, size = 4, linetype = "blank"))) + theme(axis.title = element_blank())
-  ggsave(file = paste0("E:/hazen_metagenome/results/rtsne_", dataset_names[i], ".svg"), plot=image, units="mm", width=225, height=150)
-=======
 set.seed(42)
 if (dataset_names[i] %in% "RP_MAG") {
   rtsne_data <- data.frame(Rtsne(eval(parse(text = paste0(dataset_names[i], "_distance$RaoDis"))), is_distance = T, perplexity = 1.6)$Y)
@@ -1161,7 +1007,6 @@ image <- ggplot(data = rtsne_data, aes(x = X1, y = X2)) + stat_ellipse(level = 0
   ), name = "Site") +
   guides(fill = guide_legend(override.aes = list(size = 4), order = 1), alpha = guide_legend(order = 2), color = guide_legend(override.aes = list(shape = 1, size = 4, linetype = "blank"))) + theme(axis.title = element_blank())
 ggsave(file = paste0("E:/hazen_metagenome/results/rtsne_", dataset_names[i], ".svg"), plot=image, units="mm", width=225, height=150)
->>>>>>> 25532773ff3d9301834e12709d6fd498157ab525
 }
 
 
@@ -1324,13 +1169,8 @@ genomes2 <- lapply(1:length(genomes),function(x) {
   df6 <- as.data.frame(marker_genes2[which(marker_genes2$bin==binname),9:11])
   colnames(df6) <- c("marker_gene", "process", "category")
   list(stats=df1,taxonomy=new_RP_MAG_taxonomy[y,],kegg=df2,metacyc=df3,antismash=df4,resfams=df5,marker_genes=df6)
-<<<<<<< HEAD
-})
-
-=======
   })
                                                  
->>>>>>> 25532773ff3d9301834e12709d6fd498157ab525
 names(genomes2) <- genomes_qa$Bin.Id
 
 #export data for DS-FDR
@@ -1610,11 +1450,7 @@ for (k in 1:7) {
     if (length(rownames(all_elements)) > 0)  {rownames(all_elements) <- c(1:nrow(all_elements))}
     names(all_elements) <- c("pathway", "processes")
     genome_list_3[[k]] <- all_elements 
-<<<<<<< HEAD
-  } else if (k == 6) {
-=======
     } else if (k == 6) {
->>>>>>> 25532773ff3d9301834e12709d6fd498157ab525
     common_elements <- lapply(genomes2, '[[', k)
     common_elements1 <- Reduce(intersect, lapply(common_elements, '[[', 1))
     common_elements2 <- Reduce(intersect, lapply(common_elements, '[[', 2))
@@ -1637,7 +1473,6 @@ for (k in 1:7) {
     if (length(rownames(all_elements)) > 0)  {rownames(all_elements) <- c(1:nrow(all_elements))}
     names(all_elements) <- c("genes", "category")
     genome_list_3[[k]] <- all_elements
-<<<<<<< HEAD
   } else {
     common_elements <- lapply(genomes2, '[[', k)
     common_elements1 <- Reduce(intersect, lapply(common_elements, '[[', 1))
@@ -1660,230 +1495,6 @@ for (k in 1:7) {
     all_elements <- list(all_elements1, all_elements2)
     if (length(rownames(all_elements)) > 0)  {rownames(all_elements) <- c(1:nrow(all_elements))}
     names(all_elements) <- c("genes", "processes")
-    genome_list_3[[k]] <- all_elements
-  }
-}
-names(genome_list_2) <- names(genomes2[[1]])
-names(genome_list_3) <- names(genomes2[[1]])
-
-#compare to NCBI genomes at phylum level
-levels_to_keep <- levels(genome_list_2$taxonomy$Phylum)
-levels_to_keep <- c(levels_to_keep, "Alphaproteobacteria", "Betaproteobacteria", "Deltaproteobacteria", "Gammaproteobacteria")
-
-ncbi_to_keep <- new_ggtree[which(new_ggtree$Phylum_grp %in% levels_to_keep),]
-ncbi_to_keep <- ncbi_to_keep[which(ncbi_to_keep$source %in% "repository"),]
-
-ncbi_kegg_pathways <- read.table("E:/hazen_metagenome/processed_files/ncbi_genomes_kegg_pathways.txt",sep="\t")
-CPR_kegg_pathways <- read.table("E:/hazen_metagenome/processed_files/CPR_genomes_kegg_pathways.txt",sep="\t")
-ncbi_kegg_pathways <- rbind(ncbi_kegg_pathways, CPR_kegg_pathways)
-colnames(ncbi_kegg_pathways) <- colnames_pathways
-ncbi_kegg_pathways <- ncbi_kegg_pathways[which(ncbi_kegg_pathways$bin %in% ncbi_to_keep$label),]
-
-
-#rownames(kegg_pathways2) <- kegg_pathways2$Group.1
-#kegg_pathways2 <- kegg_pathways2[,-1]
-
-ncbi_metacyc_pathways <- readLines("E:/hazen_metagenome/processed_files/ncbi_genomes_metacyc_pathways.txt")
-ncbi_metacyc_pathways <- strsplit(ncbi_metacyc_pathways,"\t")
-ncbi_metacyc_pathways <- do.call(rbind.data.frame, ncbi_metacyc_pathways)[1:3]
-colnames(ncbi_metacyc_pathways) <- colnames_pathways
-CPR_metacyc_pathways <- readLines("E:/hazen_metagenome/processed_files/CPR_genomes_metacyc_pathways.txt")
-CPR_metacyc_pathways <- strsplit(CPR_metacyc_pathways,"\t")
-CPR_metacyc_pathways <- do.call(rbind.data.frame, CPR_metacyc_pathways)[1:3]
-colnames(CPR_metacyc_pathways) <- colnames_pathways
-ncbi_metacyc_pathways <- rbind(ncbi_metacyc_pathways, CPR_metacyc_pathways)
-ncbi_metacyc_pathways <- ncbi_metacyc_pathways[which(ncbi_metacyc_pathways$bin %in% ncbi_to_keep$label),]
-ncbi_metacyc_pathways <- merge(ncbi_metacyc_pathways, metacyc_annotation, by="pathway")
-#remove suspicious (archaeal) pathways
-ncbi_metacyc_pathways <- ncbi_metacyc_pathways[-which(ncbi_metacyc_pathways$process %in% "Suspicious"),]
-
-#rownames(metacyc_pathways2) <- metacyc_pathways2$Group.1
-#metacyc_pathways2 <- metacyc_pathways2[,-1]
-
-ncbi_marker_genes <- read.table("E:/hazen_metagenome/processed_files/ncbi_genomes_individual_genes.txt", sep = " ")
-CPR_marker_genes <- read.table("E:/hazen_metagenome/processed_files/CPR_genomes_individual_genes.txt", sep = " ")
-ncbi_marker_genes <- rbind(ncbi_marker_genes, CPR_marker_genes)[,-4]
-colnames(ncbi_marker_genes) <- c("annotation", "bin", "identifier")
-
-ncbi_marker_genes <- ncbi_marker_genes[which(ncbi_marker_genes$bin %in% ncbi_to_keep$label),]
-ncbi_marker_genes <- merge(ncbi_marker_genes, marker_gene_annotation, by="annotation")
-#remove hgcB (too non-specific)
-ncbi_marker_genes <- ncbi_marker_genes[-which(ncbi_marker_genes$gene %in% "hgcB"),]
-
-ncbi_resfams <- read.table("E:/hazen_metagenome/processed_files/ncbi_genomes_resfams.txt", sep = " ")
-CPR_resfams <- read.table("E:/hazen_metagenome/processed_files/CPR_genomes_resfams.txt", sep = " ")
-ncbi_resfams <- rbind(ncbi_resfams, CPR_resfams)[,-4]
-colnames(ncbi_resfams) <- c("annotation", "bin", "identifier")
-
-ncbi_resfams <- ncbi_resfams[which(ncbi_resfams$bin %in% ncbi_to_keep$label),]
-ncbi_resfams <- merge(ncbi_resfams, resfam_gene_annotation, by="annotation")
-
-ncbi_antismash_clusters <- read.table("E:/hazen_metagenome/processed_files/ncbi_genomes_antismash_clusters.txt", sep="\t")[,1:2]
-CPR_antismash_clusters <- read.table("E:/hazen_metagenome/processed_files/CPR_genomes_antismash_clusters.txt", sep="\t")[,1:2]
-ncbi_antismash_clusters <- rbind(ncbi_antismash_clusters, CPR_antismash_clusters)
-colnames(ncbi_antismash_clusters) <- c("bin", "cluster")
-ncbi_antismash_clusters$bin <- gsub("\\s.*$", "", ncbi_antismash_clusters$bin)
-ncbi_antismash_clusters <- ncbi_antismash_clusters[which(ncbi_antismash_clusters$bin %in% ncbi_to_keep$label),]
-new_antismash_levels <- factor(c(as.character(antismash_levels), setdiff(as.character(levels(ncbi_antismash_clusters$cluster)), as.character(antismash_levels))))
-
-all_levels[[3]] <- new_antismash_levels
-
-ncbi_genomes <- lapply(1:nrow(ncbi_to_keep), function(x) {
-  binname <- ncbi_to_keep$label[x]
-  y <- grep(binname, as.character(all_taxonomy$label))
-  df2 <- as.data.frame(ncbi_kegg_pathways[which(ncbi_kegg_pathways$bin==binname),3])
-  colnames(df2) <- "kegg_pathways"
-  df3 <- as.data.frame(ncbi_metacyc_pathways[which(ncbi_metacyc_pathways$bin==binname),c(1,4,5)])
-  colnames(df3) <- c("metacyc_pathway", "process", "category")
-  df4 <- as.data.frame(ncbi_antismash_clusters[which(ncbi_antismash_clusters$bin==binname),2])
-  colnames(df4) <- "antismash_clusters"
-  df5 <- as.data.frame(ncbi_resfams[which(ncbi_resfams$bin==binname),c(4,6)])
-  colnames(df5) <- c("resfam_gene", "category")
-  df6 <- as.data.frame(ncbi_marker_genes[which(ncbi_marker_genes$bin==binname),c(4,5)])
-  colnames(df6) <- c("marker_gene", "process")
-  list(taxonomy=all_taxonomy[y,1:8],kegg=df2,metacyc=df3,antismash=df4,resfams=df5,marker_genes=df6)
-})
-
-names(ncbi_genomes) <- ncbi_to_keep$label
-
-
-# set new levels for NCBI genomes
-ncbi_genome_list_2 <- list(NULL)
-ncbi_genome_list_3 <- list(NULL)
-for (k in 1:6) {
-  if (k < 2) {
-    ncbi_genome_list_2[[k]] <- do.call(rbind,lapply(ncbi_genomes, '[[', k))
-    ncbi_genome_list_3[[k]] <- do.call(rbind,lapply(ncbi_genomes, '[[', k))
-  } else if (any(k == c(2,4))) {
-    common_elements <- lapply(ncbi_genomes, '[[', k)
-    common_elements <- Reduce(intersect, do.call(c,common_elements))
-    ncbi_genome_list_2[[k]] <- common_elements
-    all_elements <- data.frame(do.call(rbind,lapply(ncbi_genomes, '[[', k)))
-    all_elements$bin <- sub("\\..*", "", row.names(all_elements))
-    all_elements <- unique(all_elements)
-    all_elements <- data.frame(table(all_elements[,1]))
-    all_elements <- all_elements[match(all_levels[[k-1]], as.character(all_elements$Var1)),]
-    colnames(all_elements) <- c("pathway", "count")
-    all_elements <- all_elements[which(all_elements$count > 0),]
-    if (length(rownames(all_elements)) > 0)  {rownames(all_elements) <- c(1:nrow(all_elements))}
-    ncbi_genome_list_3[[k]] <- all_elements
-  } else if (k == 3) {
-    common_elements <- lapply(ncbi_genomes, '[[', k)
-    common_elements1 <- Reduce(intersect, lapply(common_elements, '[[', 1))
-    common_elements2 <- Reduce(intersect, lapply(common_elements, '[[', 2))
-    common_elements <- list(common_elements1, common_elements2)
-    names(common_elements) <- c("pathway", "processes")
-    ncbi_genome_list_2[[k]] <- common_elements
-    all_elements <- data.frame(do.call(rbind,lapply(ncbi_genomes, '[[', k)))
-    all_elements$bin <- sub("\\..*", "", row.names(all_elements))
-    all_elements <- unique(all_elements)
-    all_elements1 <- data.frame(table(all_elements$metacyc_pathway))
-    all_elements1 <- unique(all_elements1[match(as.character(all_levels[[k-1]]$pathway), as.character(all_elements1$Var1)),])
-    colnames(all_elements1) <- c("pathway", "count")
-    all_elements1 <- all_elements1[which(all_elements1$count > 0),]
-    all_elements2 <- unique(all_elements[,2:4])
-    all_elements2 <- unique(data.frame(table(all_elements2$process)))
-    all_elements2 <- unique(all_elements2[match(unique(as.character(all_levels[[k-1]]$process)), as.character(all_elements2$Var1)),])
-    colnames(all_elements2) <- c("process", "count")
-    all_elements2 <- all_elements2[which(all_elements2$count > 0),]
-    all_elements <- list(all_elements1, all_elements2)
-    if (length(rownames(all_elements)) > 0)  {rownames(all_elements) <- c(1:nrow(all_elements))}
-    names(all_elements) <- c("pathway", "processes")
-    ncbi_genome_list_3[[k]] <- all_elements 
-  } else if (k == 5) {
-    common_elements <- lapply(ncbi_genomes, '[[', k)
-    common_elements1 <- Reduce(intersect, lapply(common_elements, '[[', 1))
-    common_elements2 <- Reduce(intersect, lapply(common_elements, '[[', 2))
-    common_elements <- list(common_elements1, common_elements2)
-    names(common_elements) <- c("genes", "category")
-    ncbi_genome_list_2[[k]] <- common_elements
-    all_elements <- data.frame(do.call(rbind,lapply(ncbi_genomes, '[[', k)))
-    all_elements$bin <- sub("\\..*", "", row.names(all_elements))
-    all_elements <- unique(all_elements)
-    all_elements1 <- data.frame(table(all_elements$resfam_gene))
-    all_elements1 <- unique(all_elements1[match(as.character(all_levels[[k-1]]$resfam_gene_annotation.gene), as.character(all_elements1$Var1)),])
-    colnames(all_elements1) <- c("gene", "count")
-    all_elements1 <- all_elements1[which(all_elements1$count > 0),]
-    all_elements2 <- unique(all_elements[,c("category","bin")])
-    all_elements2 <- unique(data.frame(table(all_elements2$category)))
-    all_elements2 <- unique(all_elements2[match(unique(as.character(all_levels[[k-1]]$resfam_gene_annotation.category)), as.character(all_elements2$Var1)),])
-    colnames(all_elements2) <- c("category", "count")
-    all_elements2 <- all_elements2[which(all_elements2$count > 0),]
-    all_elements <- list(all_elements1, all_elements2)
-    if (length(rownames(all_elements)) > 0)  {rownames(all_elements) <- c(1:nrow(all_elements))}
-    names(all_elements) <- c("genes", "category")
-    ncbi_genome_list_3[[k]] <- all_elements
-  } else {
-    common_elements <- lapply(ncbi_genomes, '[[', k)
-=======
-  } else {
-    common_elements <- lapply(genomes2, '[[', k)
->>>>>>> 25532773ff3d9301834e12709d6fd498157ab525
-    common_elements1 <- Reduce(intersect, lapply(common_elements, '[[', 1))
-    common_elements2 <- Reduce(intersect, lapply(common_elements, '[[', 2))
-    common_elements <- list(common_elements1, common_elements2)
-    names(common_elements) <- c("genes", "processes")
-<<<<<<< HEAD
-    ncbi_genome_list_2[[k]] <- common_elements
-    all_elements <- data.frame(do.call(rbind,lapply(ncbi_genomes, '[[', k)))
-    all_elements$bin <- sub("\\..*", "", row.names(all_elements))
-    all_elements <- unique(all_elements)
-    all_elements1 <- data.frame(table(all_elements$marker_gene))
-    all_elements1 <- unique(all_elements1[match(as.character(all_levels[[k-1]]$marker_gene_annotation.gene), as.character(all_elements1$Var1)),])
-    colnames(all_elements1) <- c("gene", "count")
-    all_elements1 <- all_elements1[which(all_elements1$count > 0),]
-    all_elements2 <- unique(all_elements[,2:3])
-    all_elements2 <- unique(data.frame(table(all_elements2$process)))
-    all_elements2 <- unique(all_elements2[match(unique(as.character(all_levels[[k-1]]$marker_gene_annotation.process)), as.character(all_elements2$Var1)),])
-=======
-    genome_list_2[[k]] <- common_elements
-    all_elements <- data.frame(do.call(rbind,lapply(genomes2, '[[', k)))
-    all_elements$bin <- sub("\\..*", "", row.names(all_elements))
-    all_elements <- unique(all_elements)
-    all_elements1 <- data.frame(table(all_elements$marker_gene))
-    all_elements1 <- unique(all_elements1[match(as.character(all_levels[[k-2]]$marker_gene_annotation.gene), as.character(all_elements1$Var1)),])
-    colnames(all_elements1) <- c("gene", "count")
-    all_elements1 <- all_elements1[which(all_elements1$count > 0),]
-    all_elements2 <- unique(all_elements[,2:4])
-    all_elements2 <- unique(data.frame(table(all_elements2$process)))
-    all_elements2 <- unique(all_elements2[match(unique(as.character(all_levels[[k-2]]$marker_gene_annotation.process)), as.character(all_elements2$Var1)),])
->>>>>>> 25532773ff3d9301834e12709d6fd498157ab525
-    colnames(all_elements2) <- c("process", "count")
-    all_elements2 <- all_elements2[which(all_elements2$count > 0),]
-    all_elements <- list(all_elements1, all_elements2)
-    if (length(rownames(all_elements)) > 0)  {rownames(all_elements) <- c(1:nrow(all_elements))}
-    names(all_elements) <- c("genes", "processes")
-<<<<<<< HEAD
-    ncbi_genome_list_3[[k]] <- all_elements
-  }
-}
-names(ncbi_genome_list_2) <- names(ncbi_genomes[[1]])
-names(ncbi_genome_list_3) <- names(ncbi_genomes[[1]])
-
-longbranch_genomes <- genomes2[which(names(genomes2) %in% over_the_line_MAG$label)]
-
-longbranch_genome_list_2 <- list(NULL)
-longbranch_genome_list_3 <- list(NULL)
-for (k in 1:7) {
-  if (k < 3) {
-    longbranch_genome_list_2[[k]] <- do.call(rbind,lapply(longbranch_genomes, '[[', k))
-    longbranch_genome_list_3[[k]] <- do.call(rbind,lapply(longbranch_genomes, '[[', k))
-  } else if (any(k == c(3,5))) {
-    common_elements <- lapply(longbranch_genomes, '[[', k)
-    common_elements <- Reduce(intersect, do.call(c,common_elements))
-    longbranch_genome_list_2[[k]] <- common_elements
-    all_elements <- data.frame(do.call(rbind,lapply(longbranch_genomes, '[[', k)))
-    all_elements$bin <- sub("\\..*", "", row.names(all_elements))
-    all_elements <- unique(all_elements)
-    all_elements <- data.frame(table(all_elements[,1]))
-    all_elements <- all_elements[match(all_levels[[k-2]], as.character(all_elements$Var1)),]
-    colnames(all_elements) <- c("pathway", "count")
-    all_elements <- all_elements[which(all_elements$count > 0),]
-    if (length(rownames(all_elements)) > 0)  {rownames(all_elements) <- c(1:nrow(all_elements))}
-    longbranch_genome_list_3[[k]] <- all_elements
-  } else if (k == 4) {
-    common_elements <- lapply(longbranch_genomes, '[[', k)
-=======
     genome_list_3[[k]] <- all_elements
   }
 }
@@ -1993,108 +1604,56 @@ for (k in 1:6) {
     ncbi_genome_list_3[[k]] <- all_elements
   } else if (k == 3) {
     common_elements <- lapply(ncbi_genomes, '[[', k)
->>>>>>> 25532773ff3d9301834e12709d6fd498157ab525
     common_elements1 <- Reduce(intersect, lapply(common_elements, '[[', 1))
     common_elements2 <- Reduce(intersect, lapply(common_elements, '[[', 2))
     common_elements <- list(common_elements1, common_elements2)
     names(common_elements) <- c("pathway", "processes")
-<<<<<<< HEAD
-    longbranch_genome_list_2[[k]] <- common_elements
-    all_elements <- data.frame(do.call(rbind,lapply(longbranch_genomes, '[[', k)))
-    all_elements$bin <- sub("\\..*", "", row.names(all_elements))
-    all_elements <- unique(all_elements)
-    all_elements1 <- data.frame(table(all_elements$metacyc_pathway))
-    all_elements1 <- unique(all_elements1[match(as.character(all_levels[[k-2]]$pathway), as.character(all_elements1$Var1)),])
-=======
     ncbi_genome_list_2[[k]] <- common_elements
     all_elements <- data.frame(do.call(rbind,lapply(ncbi_genomes, '[[', k)))
     all_elements$bin <- sub("\\..*", "", row.names(all_elements))
     all_elements <- unique(all_elements)
     all_elements1 <- data.frame(table(all_elements$metacyc_pathway))
     all_elements1 <- unique(all_elements1[match(as.character(all_levels[[k-1]]$pathway), as.character(all_elements1$Var1)),])
->>>>>>> 25532773ff3d9301834e12709d6fd498157ab525
     colnames(all_elements1) <- c("pathway", "count")
     all_elements1 <- all_elements1[which(all_elements1$count > 0),]
     all_elements2 <- unique(all_elements[,2:4])
     all_elements2 <- unique(data.frame(table(all_elements2$process)))
-<<<<<<< HEAD
-    all_elements2 <- unique(all_elements2[match(unique(as.character(all_levels[[k-2]]$process)), as.character(all_elements2$Var1)),])
-=======
     all_elements2 <- unique(all_elements2[match(unique(as.character(all_levels[[k-1]]$process)), as.character(all_elements2$Var1)),])
->>>>>>> 25532773ff3d9301834e12709d6fd498157ab525
     colnames(all_elements2) <- c("process", "count")
     all_elements2 <- all_elements2[which(all_elements2$count > 0),]
     all_elements <- list(all_elements1, all_elements2)
     if (length(rownames(all_elements)) > 0)  {rownames(all_elements) <- c(1:nrow(all_elements))}
     names(all_elements) <- c("pathway", "processes")
-<<<<<<< HEAD
-    longbranch_genome_list_3[[k]] <- all_elements 
-  } else if (k == 6) {
-    common_elements <- lapply(longbranch_genomes, '[[', k)
-=======
     ncbi_genome_list_3[[k]] <- all_elements 
   } else if (k == 5) {
     common_elements <- lapply(ncbi_genomes, '[[', k)
->>>>>>> 25532773ff3d9301834e12709d6fd498157ab525
     common_elements1 <- Reduce(intersect, lapply(common_elements, '[[', 1))
     common_elements2 <- Reduce(intersect, lapply(common_elements, '[[', 2))
     common_elements <- list(common_elements1, common_elements2)
     names(common_elements) <- c("genes", "category")
-<<<<<<< HEAD
-    longbranch_genome_list_2[[k]] <- common_elements
-    all_elements <- data.frame(do.call(rbind,lapply(longbranch_genomes, '[[', k)))
-    all_elements$bin <- sub("\\..*", "", row.names(all_elements))
-    all_elements <- unique(all_elements)
-    all_elements1 <- data.frame(table(all_elements$resfam_gene))
-    all_elements1 <- unique(all_elements1[match(as.character(all_levels[[k-2]]$resfam_gene_annotation.gene), as.character(all_elements1$Var1)),])
-=======
     ncbi_genome_list_2[[k]] <- common_elements
     all_elements <- data.frame(do.call(rbind,lapply(ncbi_genomes, '[[', k)))
     all_elements$bin <- sub("\\..*", "", row.names(all_elements))
     all_elements <- unique(all_elements)
     all_elements1 <- data.frame(table(all_elements$resfam_gene))
     all_elements1 <- unique(all_elements1[match(as.character(all_levels[[k-1]]$resfam_gene_annotation.gene), as.character(all_elements1$Var1)),])
->>>>>>> 25532773ff3d9301834e12709d6fd498157ab525
     colnames(all_elements1) <- c("gene", "count")
     all_elements1 <- all_elements1[which(all_elements1$count > 0),]
     all_elements2 <- unique(all_elements[,c("category","bin")])
     all_elements2 <- unique(data.frame(table(all_elements2$category)))
-<<<<<<< HEAD
-    all_elements2 <- unique(all_elements2[match(unique(as.character(all_levels[[k-2]]$resfam_gene_annotation.category)), as.character(all_elements2$Var1)),])
-=======
     all_elements2 <- unique(all_elements2[match(unique(as.character(all_levels[[k-1]]$resfam_gene_annotation.category)), as.character(all_elements2$Var1)),])
->>>>>>> 25532773ff3d9301834e12709d6fd498157ab525
     colnames(all_elements2) <- c("category", "count")
     all_elements2 <- all_elements2[which(all_elements2$count > 0),]
     all_elements <- list(all_elements1, all_elements2)
     if (length(rownames(all_elements)) > 0)  {rownames(all_elements) <- c(1:nrow(all_elements))}
     names(all_elements) <- c("genes", "category")
-<<<<<<< HEAD
-    longbranch_genome_list_3[[k]] <- all_elements
-  } else {
-    common_elements <- lapply(longbranch_genomes, '[[', k)
-=======
     ncbi_genome_list_3[[k]] <- all_elements
   } else {
     common_elements <- lapply(ncbi_genomes, '[[', k)
->>>>>>> 25532773ff3d9301834e12709d6fd498157ab525
     common_elements1 <- Reduce(intersect, lapply(common_elements, '[[', 1))
     common_elements2 <- Reduce(intersect, lapply(common_elements, '[[', 2))
     common_elements <- list(common_elements1, common_elements2)
     names(common_elements) <- c("genes", "processes")
-<<<<<<< HEAD
-    longbranch_genome_list_2[[k]] <- common_elements
-    all_elements <- data.frame(do.call(rbind,lapply(longbranch_genomes, '[[', k)))
-    all_elements$bin <- sub("\\..*", "", row.names(all_elements))
-    all_elements <- unique(all_elements)
-    all_elements1 <- data.frame(table(all_elements$marker_gene))
-    all_elements1 <- unique(all_elements1[match(as.character(all_levels[[k-2]]$marker_gene_annotation.gene), as.character(all_elements1$Var1)),])
-    colnames(all_elements1) <- c("gene", "count")
-    all_elements1 <- all_elements1[which(all_elements1$count > 0),]
-    all_elements2 <- unique(all_elements[,2:4])
-    all_elements2 <- unique(data.frame(table(all_elements2$process)))
-    all_elements2 <- unique(all_elements2[match(unique(as.character(all_levels[[k-2]]$marker_gene_annotation.process)), as.character(all_elements2$Var1)),])
-=======
     ncbi_genome_list_2[[k]] <- common_elements
     all_elements <- data.frame(do.call(rbind,lapply(ncbi_genomes, '[[', k)))
     all_elements$bin <- sub("\\..*", "", row.names(all_elements))
@@ -2106,17 +1665,11 @@ for (k in 1:6) {
     all_elements2 <- unique(all_elements[,2:3])
     all_elements2 <- unique(data.frame(table(all_elements2$process)))
     all_elements2 <- unique(all_elements2[match(unique(as.character(all_levels[[k-1]]$marker_gene_annotation.process)), as.character(all_elements2$Var1)),])
->>>>>>> 25532773ff3d9301834e12709d6fd498157ab525
     colnames(all_elements2) <- c("process", "count")
     all_elements2 <- all_elements2[which(all_elements2$count > 0),]
     all_elements <- list(all_elements1, all_elements2)
     if (length(rownames(all_elements)) > 0)  {rownames(all_elements) <- c(1:nrow(all_elements))}
     names(all_elements) <- c("genes", "processes")
-<<<<<<< HEAD
-    longbranch_genome_list_3[[k]] <- all_elements
-  }
-}
-=======
     ncbi_genome_list_3[[k]] <- all_elements
   }
 }
@@ -2215,7 +1768,6 @@ for (k in 1:7) {
     longbranch_genome_list_3[[k]] <- all_elements
   }
 }
->>>>>>> 25532773ff3d9301834e12709d6fd498157ab525
 names(longbranch_genome_list_2) <- names(longbranch_genomes[[1]])
 names(longbranch_genome_list_3) <- names(longbranch_genomes[[1]])
 
@@ -2316,28 +1868,16 @@ names(longbranch_ncbi_genome_list_3) <- names(longbranch_ncbi_genomes[[1]])
 
 metacyc_processes <- merge(ncbi_genome_list_3$metacyc$processes, genome_list_3$metacyc$processes, by="process", all=T)
 metacyc_processes <- merge(metacyc_processes, longbranch_ncbi_genome_list_3$metacyc$processes, by="process", all=T)
-<<<<<<< HEAD
-colnames(metacyc_processes) <- c("process", "Reference_genomes", "MAGs", "Long_branching_reference_genomes")
-metacyc_processes <- merge(metacyc_processes, longbranch_genome_list_3$metacyc$processes, by="process", all=T)
-colnames(metacyc_processes)[5] <- "Long_branching_MAGs"
-=======
 colnames(metacyc_processes) <- c("process", "Reference genomes", "MAGs", "Long-branching reference genomes")
 metacyc_processes <- merge(metacyc_processes, longbranch_genome_list_3$metacyc$processes, by="process", all=T)
 colnames(metacyc_processes)[5] <- "Long-branching MAGs"
->>>>>>> 25532773ff3d9301834e12709d6fd498157ab525
 metacyc_processes <- metacyc_processes[match(as.character(ncbi_genome_list_3$metacyc$processes$process), metacyc_processes$process),]
 
 marker_processes <- merge(ncbi_genome_list_3$marker_genes$processes, genome_list_3$marker_genes$processes, by="process", all=T)
 marker_processes <- merge(marker_processes, longbranch_ncbi_genome_list_3$marker_genes$processes, by="process", all=T)
-<<<<<<< HEAD
-colnames(marker_processes) <- c("process", "Reference_genomes", "MAGs", "Long_branching_reference_genomes")
-marker_processes <- merge(marker_processes, longbranch_genome_list_3$marker_genes$processes, by="process", all=T)
-colnames(marker_processes)[5] <- "Long_branching_MAGs"
-=======
 colnames(marker_processes) <- c("process", "Reference genomes", "MAGs", "Long-branching reference genomes")
 marker_processes <- merge(marker_processes, longbranch_genome_list_3$marker_genes$processes, by="process", all=T)
 colnames(marker_processes)[5] <- "Long-branching MAGs"
->>>>>>> 25532773ff3d9301834e12709d6fd498157ab525
 marker_processes <- marker_processes[match(as.character(ncbi_genome_list_3$marker_genes$processes$process), marker_processes$process),]
 
 all_processes <- rbind(metacyc_processes, marker_processes)
@@ -2345,55 +1885,6 @@ all_processes$process <- gsub("_", " ", all_processes$process)
 colnames(all_processes) <- gsub("_", " ", colnames(all_processes))
 
 process_levels <- rev(c("Cell structure biosynthesis","Fatty acid and lipid biosynthesis","Amino acid biosynthesis","Aromatic compound biosynthesis",
-<<<<<<< HEAD
-                        "Secondary metabolite biosynthesis","Antibiotic biosynthesis","Other biosynthesis","Nitrogen assimilation",
-                        "Selenate reduction","Amino acid degradation","Carbohydrate degradation","Aromatic compound degradation",
-                        "Secondary metabolite degradation","Chlorinated compound degradation","Glycerol degradation","DMSO degradation",
-                        "Phosphate degradation","Organic matter degradation","Hydrogen production","Phototrophy","Autotrophic CO2 assimilation",
-                        "Fermentation","Energy generation","Energy conservation","Methylotrophic metabolism","Metabolic pathway",
-                        "N fixation","Nitrification bacteria","Denitrification","DNRA","DNRA Polysulfide reduction",
-                        "Sulfur compound reduction","Sulfite reduction to sulfide reversible", "Sulfite reduction to sulfide",
-                        "Sulfur compound oxidation","Sulfide oxidation","Sulfite oxidation to sulfate",
-                        "Phosphorus uptake","Polyphosphate synthesis","Mercury resistance","Mercury methylation","Arsenic resistance",
-                        "Pb Zn resistance or homeostasis","Cd Pb resistance","Cd Co Cu Pb Zn resistance or homeostasis",
-                        "Cu resistance","Multimetal resistance regulation"))
-
-all_processes$process <- factor(all_processes$process, levels=process_levels)
-all_processes <- all_processes[order(all_processes$process),]
-all_processes[,2:5] <- sweep(all_processes[,2:5], 2, c(2486, 55,53,18), FUN = '/')
-all_processes[,2:5] <- round(all_processes[,2:5]*100, 0)
-all_processes$category <- c(rep("Metal homeostasis", 8), rep("Biogeochemical cycles", 13), rep("Energy metabolism", 8), rep("Degradation", 9), rep("Biosynthesis", 9))
-all_processes$category <- factor(all_processes$category, levels=rev(unique(all_processes$category)))
-
-#chi-squared test and plot a map
-all_processes_chi <- all_processes[2:5]
-rownames(all_processes_chi) <- all_processes$process
-all_processes_chi[is.na(all_processes_chi)] <- 0
-cisq_test_all_processes <- chisq.test(all_processes_chi)
-contrib_all_processes <- 100*cisq_test_all_processes$residuals^2/cisq_test_all_processes$statistic
-#subset to processes that contribute more than equally (100 % / 47 processes) to the total chi-squared score
-most_important_processes <- cisq_test_all_processes$residuals[rowSums(round(contrib_all_processes,3)) > 2.13,]
-levels(rownames(most_important_processes)) <- process_levels
-most_important_processes <- melt(most_important_processes)
-image <- ggplot(data = most_important_processes, aes(x=Var1, y=Var2, fill=value)) + geom_tile(color="white") + coord_flip() + 
-  scale_fill_gradient2("Pearson residual", low = "blue", mid = "white", high = "red", midpoint = 0) +
-  theme(axis.text.y = element_text(size = 16), strip.text.y = element_text(angle=0, hjust=0), axis.text.x = element_text(angle=45, hjust=1), panel.border = element_blank(), 
-        axis.ticks.y = element_blank(), axis.title.y = element_blank(), axis.title.x = element_blank(), plot.title = element_text(size=28, hjust = 0.5))
-ggsave(file = "E:/hazen_metagenome/results/chi_squared_heatmap.svg", plot=image, units="cm", width=10, height=12, scale=2.5)
-
-all_processes_melt <- melt(all_processes)
-all_processes_melt$variable <- factor(all_processes_melt$variable, levels=rev(colnames(all_processes)[2:5]))
-
-
-image <- ggplot(all_processes_melt, aes(y=value, x=process, fill=variable)) + geom_col(position = position_dodge2(width = 0.75, preserve = "single"))  +#geom_point(aes(size=value), color="steelblue", shape=1, stroke=3) +
-  coord_flip() + scale_fill_brewer(name="Collection",palette="Paired") + 
-  facet_grid(category~., scales="free", space="free") + ylab("Present in % of genomes") +
-  theme(axis.text.y = element_text(size = 16), strip.text.y = element_text(angle=0, hjust=0), panel.border = element_blank(), 
-        axis.ticks.y = element_blank(), axis.title.y = element_blank(), plot.title = element_text(size=28, hjust = 0.5),
-        legend.position = "bottom") + guides(fill=guide_legend(nrow=2,byrow=FALSE,reverse=TRUE))
-ggsave(file = "E:/hazen_metagenome/results/all_processes_bars.svg", plot=image, units="cm", width=10, height=12, scale=3)
-
-=======
   "Secondary metabolite biosynthesis","Antibiotic biosynthesis","Other biosynthesis","Nitrogen assimilation",
   "Selenate reduction","Amino acid degradation","Carbohydrate degradation","Aromatic compound degradation",
   "Secondary metabolite degradation","Chlorinated compound degradation","Glycerol degradation","DMSO degradation",
@@ -2402,7 +1893,7 @@ ggsave(file = "E:/hazen_metagenome/results/all_processes_bars.svg", plot=image, 
   "N fixation","Nitrification bacteria","Denitrification","DNRA","DNRA Polysulfide reduction",
   "Sulfur compound reduction","Sulfite reduction to sulfide reversible", "Sulfite reduction to sulfide",
   "Sulfur compound oxidation","Sulfide oxidation","Sulfite oxidation to sulfate",
-  "Phosphorus uptake","Polyphosphate synthesis","Mercury resistance","Mercury methylation","Arsenic resistance",
+  "Phosphorus uptake", "Polyphosphate processing","Mercury resistance","Mercury methylation","Arsenic resistance",
   "Pb Zn resistance or homeostasis","Cd Pb resistance","Cd Co Cu Pb Zn resistance or homeostasis",
   "Cu resistance","Multimetal resistance regulation"))
 
@@ -2415,11 +1906,11 @@ all_processes$category <- factor(all_processes$category, levels=rev(unique(all_p
 MAG_processes_chi <- all_processes[c(2,3)]
 rownames(MAG_processes_chi) <- all_processes$process
 MAG_processes_chi[is.na(MAG_processes_chi)] <- 0
-MAG_processes_chi <- LBM_processes_chi[rowSums(LBM_processes_chi) > 0,]
+MAG_processes_chi <- MAG_processes_chi[rowSums(MAG_processes_chi) > 0,]
 cisq_test_MAG_processes <- chisq.test(MAG_processes_chi, simulate.p.value = T, B = 1000)
 contrib_MAG_processes <- 100*cisq_test_MAG_processes$residuals^2/cisq_test_MAG_processes$statistic
 #subset to processes that contribute more than equally (100 % / 47 processes) to the total chi-squared score
-most_important_MAG_processes <- cisq_test_MAG_processes$residuals[rowSums(round(contrib_MAG_processes,3)) > 2.13,]
+most_important_MAG_processes <- cisq_test_MAG_processes$residuals[rowSums(round(contrib_MAG_processes,3)) > (100/47),]
 levels(rownames(most_important_MAG_processes)) <- process_levels
 most_important_MAG_processes <- melt(most_important_MAG_processes)
 
@@ -2430,7 +1921,7 @@ LBM_processes_chi <- LBM_processes_chi[rowSums(LBM_processes_chi) > 0,]
 cisq_test_LBM_processes <- chisq.test(LBM_processes_chi, simulate.p.value = T, B = 1000)
 contrib_LBM_processes <- 100*cisq_test_LBM_processes$residuals^2/cisq_test_LBM_processes$statistic
 #subset to processes that contribute more than equally (100 % / 47 processes) to the total chi-squared score
-most_important_LBM_processes <- cisq_test_LBM_processes$residuals[rowSums(round(contrib_LBM_processes,3)) > 2.13,]
+most_important_LBM_processes <- cisq_test_LBM_processes$residuals[rowSums(round(contrib_LBM_processes,3)) > (100/47),]
 levels(rownames(most_important_LBM_processes)) <- process_levels
 most_important_LBM_processes <- melt(most_important_LBM_processes)
 
@@ -2466,17 +1957,20 @@ image <- ggplot(all_processes_melt, aes(y=value, x=process, fill=variable)) + ge
         legend.position = "bottom")
 ggsave(file = "E:/hazen_metagenome/results/all_processes_bars.svg", plot=image, units="cm", width=10, height=12, scale=3)
 
+#summarize stats of genomes
+MAG_summary_table <- genome_list_2[1]$stats
+MAG_summary_table$est.Genome.Size..Mbp. <- MAG_summary_table$Genome.size..Mbp. / (MAG_summary_table$Completeness/100)
+MAG_summary_table$LBM <- ifelse(rownames(MAG_summary_table) %in% rownames(longbranch_genome_list_2[1]$stats), "yes", "no")
+MAG_summary_table <- rbind(MAG_summary_table, c(colMeans(MAG_summary_table[-ncol(MAG_summary_table)]), "NA"))
+rownames(MAG_summary_table) <- c(as.character(genome_list_2[2]$taxonomy$Species), "Means")
+write.csv(MAG_summary_table, "E:/hazen_metagenome/results/MAG_summary_table.csv", quote=F, row.names = T)
+MAG_summary_table2 <- data.frame(Species = rownames(MAG_summary_table)[-nrow(MAG_summary_table)], LBM = MAG_summary_table[-nrow(MAG_summary_table),ncol(MAG_summary_table)])
 
->>>>>>> 25532773ff3d9301834e12709d6fd498157ab525
 #which MAGs take part in which processes
 MAG_metacycs <- lapply(genomes2, '[[', 4)
 MAG_markers <- lapply(genomes2, '[[', 7)
 processes_of_interest <- c("sulfate reduction V", "sulfate activation for sulfonation", "sulfoacetaldehyde degradation I", "ammonia assimilation", "N_fixation", "Denitrification", "Nitrification_bacteria", 
-<<<<<<< HEAD
-                           "Sulfite_reduction_to_sulfide", "Sulfide_oxidation", "Sulfite_oxidation_to_sulfate", "Mercury_resistance",  "DNRA_Polysulfide_reduction")
-=======
                            "Sulfite_reduction_to_sulfide", "Sulfide_oxidation", "Mercury_resistance",  "DNRA_Polysulfide_reduction")
->>>>>>> 25532773ff3d9301834e12709d6fd498157ab525
 process_tax_list <- list(NULL)
 for (i in 1:4) {
   process_tax_list[[i]] <- do.call(rbind, lapply(genomes2[which(mapply(function(x) any(grepl(processes_of_interest[i],x$metacyc_pathway)), MAG_metacycs))], '[[', 2))
@@ -2484,34 +1978,28 @@ for (i in 1:4) {
 for (i in 5:length(processes_of_interest)) {
   process_tax_list[[i]] <- do.call(rbind, lapply(genomes2[which(mapply(function(x) any(grepl(processes_of_interest[i],x$process)), MAG_markers))], '[[', 2))
 }
-<<<<<<< HEAD
-process_tax_list[[length(process_tax_list)+1]] <- do.call(rbind, lapply(genomes2[which(mapply(function(x) any(grepl("nrfH",x$marker_gene)), MAG_markers))], '[[', 2))
-process_tax_list[[length(process_tax_list)+1]] <- do.call(rbind, lapply(genomes2[which(mapply(function(x) any(grepl("nosZ",x$marker_gene)), MAG_markers))], '[[', 2))
-process_tax_list[[length(process_tax_list)+1]] <- do.call(rbind, lapply(genomes2[which(mapply(function(x) any(grepl("nirK",x$marker_gene)), MAG_markers))], '[[', 2))
-names(process_tax_list) <- c(processes_of_interest, "DNRA", "Nitrous oxide reduction", "Nitrite reduction to nitric oxide")
-=======
 process_tax_list[[length(process_tax_list)+1]] <- do.call(rbind, lapply(genomes2[which(mapply(function(x) any(grepl("nrfH|nir[B-D]",x$marker_gene)), MAG_markers))], '[[', 2))
 process_tax_list[[length(process_tax_list)+1]] <- do.call(rbind, lapply(genomes2[which(mapply(function(x) any(grepl("nosZ",x$marker_gene)), MAG_markers))], '[[', 2))
 process_tax_list[[length(process_tax_list)+1]] <- do.call(rbind, lapply(genomes2[which(mapply(function(x) any(grepl("nirK",x$marker_gene)), MAG_markers))], '[[', 2))
 process_tax_list[[length(process_tax_list)+1]] <- do.call(rbind, lapply(genomes2[which(mapply(function(x) any(grepl("nar[G-J]",x$marker_gene)), MAG_markers))], '[[', 2))
 names(process_tax_list) <- c(processes_of_interest, "DNRA", "Nitrous oxide reduction", "Nitrite reduction to nitric oxide", "Nitrate reduction to nitrite")
->>>>>>> 25532773ff3d9301834e12709d6fd498157ab525
 process_tax_list <- bind_rows(process_tax_list, .id="process")
 process_tax_list <- merge(process_tax_list, data.frame(otu_table(RP_MAG_phylo)), by.x="label", by.y="row.names", all.x=T)
 process_tax_list$mean <- rowMeans(as.matrix(process_tax_list[10:15]))
 process_tax_list <- process_tax_list[-c(10:15)]
 process_tax_list <- process_tax_list[order(process_tax_list$process, process_tax_list$mean, decreasing =T),]
+process_tax_list <- join(process_tax_list, MAG_summary_table2, by = "Species")[-1]
 write.csv(process_tax_list, "E:/hazen_metagenome/results/processes_of_interest_taxa.csv", quote=F, row.names = F)
 process_phylum_list <- process_tax_list
 process_phylum_list$Phylum <- as.character(process_phylum_list$Phylum)
 process_phylum_list$Phylum[which(process_phylum_list$Phylum %in% "Proteobacteria")] <- as.character(process_phylum_list$Class[which(process_phylum_list$Phylum %in% "Proteobacteria")])
-<<<<<<< HEAD
-process_phylum_list <- aggregate(mean~process+Phylum, process_phylum_list, mean)
-=======
 process_phylum_list <- aggregate(mean~process+Phylum, process_phylum_list, sum)
->>>>>>> 25532773ff3d9301834e12709d6fd498157ab525
 process_phylum_list <- process_phylum_list[order(process_phylum_list$process, process_phylum_list$mean, decreasing = T),]
 write.csv(process_phylum_list, "E:/hazen_metagenome/results/processes_of_interest_phyla.csv", quote=F, row.names = F)
+process_LBM_list <- process_tax_list
+process_LBM_list <- aggregate(mean~process+LBM, process_LBM_list, sum)
+process_LBM_list <- process_LBM_list[order(process_LBM_list$process, process_LBM_list$mean, decreasing = T),]
+write.csv(process_LBM_list, "E:/hazen_metagenome/results/processes_of_interest_LBM.csv", quote=F, row.names = F)
 
 # checkm_model_shared <- list(NULL)
 # checkm_model_present <- list(NULL)
