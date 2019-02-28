@@ -1,25 +1,20 @@
-# # installing/loading the package:
-# if(!require(installr)) {
-#   install.packages("installr"); require(installr)} #load / install+load installr
-# 
-# # using the package:
-# updateR() # this will start the updating process of your R installation.  It will check for newer versions, and if one is available, will guide you through the decisions you'd need to make.
-
-source("http://bioconductor.org/biocLite.R")
-biocLite("BiocUpgrade") 
+if (!requireNamespace("BiocManager")) {
+  install.packages("BiocManager")
+}
 
 packages <- c("ggplot2", "ranger", "svglite", "ggthemes", "phyloseq", "vegan", "Rtsne", "dbscan", "mefa", "caret", "data.table", "plyr", "protr", 
               "data.table", "MLPUGS", "compiler", "DESeq2", "ape", "gggenes", "car", "edarf", "biomformat", "limma", "seqinr", "taxize", "ggtree", 
-              "tidytree", "dplyr")
+              "dplyr", "tidytree")
 
-ipak <- function(pkg) {
+
+is.installed <- function(pkg) {
   new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
-  if (length(new.pkg))
-    biocLite(new.pkg, dependencies = T, suppressUpdates = T)
+  if (length(new.pkg)) {
+    BiocManager::install(new.pkg, ask=F, version= "3.8")
+  }
   sapply(pkg, require, character.only = TRUE)
 }
-
-ipak(packages)
+is.installed(packages)
 
 enableJIT(3)
 
@@ -411,7 +406,7 @@ ncbi_genomes_taxonomy$source <- ifelse(grepl("Bin_", ncbi_genomes_taxonomy$label
 # ncbi_genomes <- phyloseq(otu_table(ncbi_genomes_otu_table, taxa_are_rows = T), tax_table(as.matrix(ncbi_genomes_taxonomy)), phy_tree(concatenated_tree))
 
 #plot a tree with ggtree
-new_ggtree <- as_data_frame(phy_tree(concatenated_tree))
+new_ggtree <- as_tibble(phy_tree(concatenated_tree))
 all_taxonomy <- ncbi_genomes_taxonomy
 all_taxonomy$fulltax <- apply(all_taxonomy[,3:8], 1, paste, collapse = "_")
 all_taxonomy$fulltax <- gsub("NA_", "", all_taxonomy$fulltax)
@@ -462,15 +457,14 @@ ggsave(file = "E:/hazen_metagenome/results/CPR_phyla_nodes_supports.pdf", plot=i
 # }
 # 
 # image <- image + geom_point2(aes(subset=(node %in% node_annotation$node)), size=0.2, color="darkgrey")
-image <- ggtree(new_ggtree2, aes(color=group), ladderize = T, size=0.1) + #geom_text2(aes(subset=!isTip, label=label), hjust=-.3, size=0.2) + 
-  geom_nodelab(aes(subset=(!isTip & as.numeric(label) > 0.75)), label="\u25CF", size=2, color="black", hjust=6) + 
-  geom_tiplab(aes(label=new_ggtree$fulltax), size=0.2) + 
+image <- ggtree(new_ggtree2, aes(color=group), ladderize = T, size=0.1) + geom_text2(aes(subset=!isTip, label=round(as.numeric(label),2)), hjust=-.3, size=0.3) + 
+  geom_tiplab(aes(label=new_ggtree$fulltax), size=0.3, hjust=.1) + 
   geom_tippoint(aes(alpha=new_ggtree$source), color="red", shape=20, size=0.2) + 
   scale_alpha_manual(values=c("1", "0")) +
   geom_treescale(linesize=0.2, fontsize=1, offset=1) +
-  scale_color_manual(values=c(treepalette2))
+  scale_color_manual(values=c(treepalette2)) + ggplot2::ylim(0, 5997) + ggplot2::theme(plot.margin=unit(c(0,0,0,0),"mm"))
 
-ggsave(file = "E:/hazen_metagenome/results/CPR_phyla_supports.pdf", plot=image, units="cm", width=15, height=80, limitsize = F, scale=2.5, device=cairo_pdf)
+ggsave(file = "E:/hazen_metagenome/results/Figure_x.pdf", plot=image, units="cm", width=15, height=75, limitsize = F, scale=2.5, device=cairo_pdf)
 
 image <- ggtree(new_ggtree2, layout="circular", aes(color=group), ladderize = T, size=0.1) + 
   #geom_nodelab(aes(subset=(!isTip & as.numeric(label) > 0.9)), label="\u25CF", size=0.2, hjust=0, color="black") + 
@@ -532,7 +526,7 @@ LH_MA_65_9_distance2 <- 1-(as.matrix(LH_MA_65_9_distance)[,1]^2)
 names(LH_MA_65_9_distance2) <- gsub("_16S.*", "", names(LH_MA_65_9_distance2))
 names(LH_MA_65_9_distance2) <- (gsub("_partial.*", "", names(LH_MA_65_9_distance2)))
 LH_MA_65_9_tree <- read.tree("E:/hazen_metagenome/processed_files/arb-silva.de_LH_MA_65_9.tree")
-LH_MA_65_9_ggtree <- as_data_frame(phy_tree(LH_MA_65_9_tree))
+LH_MA_65_9_ggtree <- as_tibble(phy_tree(LH_MA_65_9_tree))
 LH_MA_65_9_ggtree$label <- gsub("_16S.*", "", LH_MA_65_9_ggtree$label)
 LH_MA_65_9_ggtree$label <- gsub("_partial.*", "", LH_MA_65_9_ggtree$label)
 LH_MA_65_9_ggtree$group <- NA
@@ -556,7 +550,7 @@ names(LH_MA_57_9_distance2) <- gsub("_gene.*", "", names(LH_MA_57_9_distance2))
 names(LH_MA_57_9_distance2) <- gsub("_partial.*", "", names(LH_MA_57_9_distance2))
 names(LH_MA_57_9_distance2) <- gsub("&a.*", "", names(LH_MA_57_9_distance2))
 LH_MA_57_9_tree <- read.tree("E:/hazen_metagenome/processed_files/arb-silva.de_LH_MA_57_9.tree")
-LH_MA_57_9_ggtree <- as_data_frame(phy_tree(LH_MA_57_9_tree))
+LH_MA_57_9_ggtree <- as_tibble(phy_tree(LH_MA_57_9_tree))
 LH_MA_57_9_ggtree$label <- gsub("_16S.*", "", LH_MA_57_9_ggtree$label)
 LH_MA_57_9_ggtree$label <- gsub("_RNA.*", "", LH_MA_57_9_ggtree$label)
 LH_MA_57_9_ggtree$label <- gsub("_gene.*", "", LH_MA_57_9_ggtree$label)
@@ -645,14 +639,15 @@ chemistry_palette=c("#d23416",
                     "royalblue1",
                     "#46499d",
                     "#000000")
+chemistry_data_plot$value.x[is.na(chemistry_data_plot$value.x)] <- 0
 
 image <- ggplot(chemistry_data_plot, aes(x=Depth.cm, y=value.x, group=Site)) + geom_point(aes(fill = variable, color = variable), shape = 18, size=7, alpha = 0.5) + 
-  facet_grid(Site~., scales="free_y", space="free_y") + 
+  facet_grid(Site~., scales="free_y", space="free_y") + geom_path(aes(color = variable, group = variable)) +
   geom_errorbar(aes(ymin=sdmin, ymax=sdmax, color = variable), width = 0.5) + coord_flip() + scale_y_continuous(breaks = seq(0,450,100), limits = c(0,450)) +
   scale_color_manual(values = chemistry_palette) + ggtitle("Physicochemical variability") + xlab("Depth from sediment surface (cm)") + 
   theme(axis.text.y = element_text(hjust = 1, size = 22), panel.spacing = unit(2, "lines"), strip.text.y = element_blank(), axis.title.x = element_blank(), legend.title = element_blank(), 
         legend.position="bottom", plot.margin = unit(c(0.8,0.5,6.2,0.5), "lines"), plot.title = element_text(size=28, hjust = 0.5))
-ggsave(file = "E:/hazen_metagenome/results/physicochemistry.svg", plot=image, units="cm", width=12, height=12, scale = 2)
+ggsave(file = "E:/hazen_metagenome/results/physicochemistry_new.svg", plot=image, units="cm", width=12, height=16, scale = 2)
 
 #construct phyloseq objects
 #metaphlan2 <- phyloseq(otu_table(metaphlan2_data, taxa_are_rows = T), sample_data(sample_mapping_data))
@@ -847,7 +842,7 @@ phylogeny <- c("Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species
 # checkm_tree$tip.label <- gsub("-contigs", "", checkm_tree$tip.label)
 new_RP_MAG_taxonomy <- read.table("E:/hazen_metagenome/processed_files/RP_MAGs_taxonomy.txt", sep="\t", header=T, na.strings=c("","NA"))
 rownames(new_RP_MAG_taxonomy) <- new_RP_MAG_taxonomy$label
-new_RP_MAG_tree <- as_data_frame(treeio::drop.tip(new_ggtree2, tip=new_ggtree$label[which(new_ggtree$source %in% "repository")]))
+new_RP_MAG_tree <- as_tibble(treeio::drop.tip(new_ggtree2, tip=new_ggtree$label[which(new_ggtree$source %in% "repository")]))
 new_RP_MAG_tree <- full_join(new_RP_MAG_tree %>% select(-(5:ncol(new_RP_MAG_tree))), new_RP_MAG_taxonomy, by="label")
 
 
