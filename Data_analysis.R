@@ -2129,69 +2129,69 @@ write.csv(process_LBM_list, "E:/hazen_metagenome/results/processes_of_interest_L
 #   checkm_model_present[[i]] <- result_list2
 #   names(checkm_model_present)[i] <- as.character(modelstorun_frame$model[i])
 # }
-
-unknown_checkm_phylo <- subset_taxa(quality_checkm_phylo, !(Phylum %in% phyla_levels_all))
-plot_tree(quality_checkm_phylo, nodelabf=nodeplotboot(), ladderize="left", color="Phylum", size="Abundance", shape="Site") + coord_polar(theta="y") + 
-  guides(shape = guide_legend(override.aes = list(size = 5)), color = guide_legend(override.aes = list(size = 5))) +
-  scale_color_brewer(palette="Set3")
-radiation_phylo <- subset_taxa(quality_checkm_phylo, is.na(Phylum))
-
-plot_tree(radiation_phylo, nodelabf=nodeplotboot(), ladderize="left", size="Abundance", shape="Site", color="Sample") +  
-  guides(shape = guide_legend(override.aes = list(size = 5)), color = guide_legend(override.aes = list(size = 5))) +
-  scale_color_brewer(palette="Set3")
-
-top10_names <- list(NULL)
-for (i in 1:length(sample_names(quality_checkm_phylo))) {
-  top10 <- subset_samples(quality_checkm_phylo, Sample == sample_names(quality_checkm_phylo)[i])
-  top10_names[[i]] <- names(sort(taxa_sums(top10), decreasing = TRUE)[1:10])
-}
-top10_df <- reshape2::melt(top10_names)
-top10_df <- as.data.frame.matrix(table(top10_df))
-#colnames(top10_df) <- sample_names(quality_checkm_phylo)
-sites_venn <- data.frame(Deep.Hole = apply(top10_df[ , c(1:3)] , 1 , paste , collapse = "" ), Snowgoose.Bay = apply(top10_df[ , c(4:6)] , 1 , paste , collapse = "" ))
-sites_venn2 <- data.frame(Deep.Hole = ifelse(sites_venn$Deep.Hole %in% "000", 0, 1), Snowgoose.Bay = ifelse(sites_venn$Snowgoose.Bay %in% "000", 0, 1))
-top10_venn <- vennCounts(sites_venn2)
-vennDiagram(top10_venn)
-
-top10_DH <- subset_samples(quality_checkm_phylo, Site == "Deep Hole")
-top10_DH_names <- names(sort(taxa_sums(top10_DH), decreasing = TRUE)[1:10])
-top10_DH <- prune_taxa(top10_DH_names, top10_DH)
-
-top10_SB <- subset_samples(quality_checkm_phylo, Site == "Snowgoose Bay")
-top10_SB_names <- names(sort(taxa_sums(top10_SB), decreasing = TRUE)[1:10])
-top10_SB <- prune_taxa(top10_SB_names, top10_SB)
-
-hgc_splits <- unique(as.character(marker_genes2$split_id[which(marker_genes2$gene %in% c("hgcA","hgcB"))]))
-hgc_splits <- marker_genes2[which(marker_genes2$split_id %in% hgc_splits),]
-hgc_splits <- hgc_splits[,c("bin", "split_id", "start_bp", "end_bp", "gene_direction", "gene")]
-hgc_splits$start_bp <- as.numeric(hgc_splits$start_bp)
-hgc_splits$end_bp <- as.numeric(hgc_splits$end_bp)
-
-
-hgc_splits$direction <- ifelse(hgc_splits$gene_direction == "f", 1, -1)
-
-#hgc_splits <- hgc_splits[which(hgc_splits$gene %in% c("hgcA","hgcB")),]
-
-ggplot(hgc_splits, aes(xmin = start_bp, xmax = end_bp, y = split_id, fill = gene, forward = direction)) + geom_gene_arrow() + 
-  facet_wrap(~ split_id, scales="free") +
-  scale_fill_brewer(palette = "Set3") + theme_genes() + ggtitle("Spirochaetales bacteria hgcAB genes")
-
-mer_splits <- unique(as.character(marker_genes2$split_id[which(marker_genes2$gene %in% "merA")]))
-mer_splits <- marker_genes2[which(marker_genes2$split_id %in% mer_splits),]
-mer_splits <- mer_splits[,c("bin", "split_id", "start_bp", "end_bp", "gene_direction", "gene")]
-
-mer_splits$direction <- ifelse(mer_splits$gene_direction == "f", 1, -1)
-
-mer_splits <- mer_splits[which(mer_splits$gene %in% c("merA","merB")),]
-
-ggplot(mer_splits, aes(xmin = start_bp, xmax = end_bp, y = split_id, fill = gene, forward = direction)) + geom_gene_arrow() + facet_wrap(~ split_id, scales = "free", ncol = 1) +
-  scale_fill_brewer(palette = "Set3") + theme_genes()
-
-ggplot2::ggplot(hgc_splits, ggplot2::aes(xmin = start_bp, xmax = end_bp, y =
-                                           split_id, fill = gene)) +
-  geom_gene_arrow() +
-  ggplot2::facet_wrap(~ split_id, scales = "free", ncol = 1) +
-  ggplot2::scale_fill_brewer(palette = "Set3")
+# 
+# unknown_checkm_phylo <- subset_taxa(quality_checkm_phylo, !(Phylum %in% phyla_levels_all))
+# plot_tree(quality_checkm_phylo, nodelabf=nodeplotboot(), ladderize="left", color="Phylum", size="Abundance", shape="Site") + coord_polar(theta="y") + 
+#   guides(shape = guide_legend(override.aes = list(size = 5)), color = guide_legend(override.aes = list(size = 5))) +
+#   scale_color_brewer(palette="Set3")
+# radiation_phylo <- subset_taxa(quality_checkm_phylo, is.na(Phylum))
+# 
+# plot_tree(radiation_phylo, nodelabf=nodeplotboot(), ladderize="left", size="Abundance", shape="Site", color="Sample") +  
+#   guides(shape = guide_legend(override.aes = list(size = 5)), color = guide_legend(override.aes = list(size = 5))) +
+#   scale_color_brewer(palette="Set3")
+# 
+# top10_names <- list(NULL)
+# for (i in 1:length(sample_names(quality_checkm_phylo))) {
+#   top10 <- subset_samples(quality_checkm_phylo, Sample == sample_names(quality_checkm_phylo)[i])
+#   top10_names[[i]] <- names(sort(taxa_sums(top10), decreasing = TRUE)[1:10])
+# }
+# top10_df <- reshape2::melt(top10_names)
+# top10_df <- as.data.frame.matrix(table(top10_df))
+# #colnames(top10_df) <- sample_names(quality_checkm_phylo)
+# sites_venn <- data.frame(Deep.Hole = apply(top10_df[ , c(1:3)] , 1 , paste , collapse = "" ), Snowgoose.Bay = apply(top10_df[ , c(4:6)] , 1 , paste , collapse = "" ))
+# sites_venn2 <- data.frame(Deep.Hole = ifelse(sites_venn$Deep.Hole %in% "000", 0, 1), Snowgoose.Bay = ifelse(sites_venn$Snowgoose.Bay %in% "000", 0, 1))
+# top10_venn <- vennCounts(sites_venn2)
+# vennDiagram(top10_venn)
+# 
+# top10_DH <- subset_samples(quality_checkm_phylo, Site == "Deep Hole")
+# top10_DH_names <- names(sort(taxa_sums(top10_DH), decreasing = TRUE)[1:10])
+# top10_DH <- prune_taxa(top10_DH_names, top10_DH)
+# 
+# top10_SB <- subset_samples(quality_checkm_phylo, Site == "Snowgoose Bay")
+# top10_SB_names <- names(sort(taxa_sums(top10_SB), decreasing = TRUE)[1:10])
+# top10_SB <- prune_taxa(top10_SB_names, top10_SB)
+# 
+# hgc_splits <- unique(as.character(marker_genes2$split_id[which(marker_genes2$gene %in% c("hgcA","hgcB"))]))
+# hgc_splits <- marker_genes2[which(marker_genes2$split_id %in% hgc_splits),]
+# hgc_splits <- hgc_splits[,c("bin", "split_id", "start_bp", "end_bp", "gene_direction", "gene")]
+# hgc_splits$start_bp <- as.numeric(hgc_splits$start_bp)
+# hgc_splits$end_bp <- as.numeric(hgc_splits$end_bp)
+# 
+# 
+# hgc_splits$direction <- ifelse(hgc_splits$gene_direction == "f", 1, -1)
+# 
+# #hgc_splits <- hgc_splits[which(hgc_splits$gene %in% c("hgcA","hgcB")),]
+# 
+# ggplot(hgc_splits, aes(xmin = start_bp, xmax = end_bp, y = split_id, fill = gene, forward = direction)) + geom_gene_arrow() + 
+#   facet_wrap(~ split_id, scales="free") +
+#   scale_fill_brewer(palette = "Set3") + theme_genes() + ggtitle("Spirochaetales bacteria hgcAB genes")
+# 
+# mer_splits <- unique(as.character(marker_genes2$split_id[which(marker_genes2$gene %in% "merA")]))
+# mer_splits <- marker_genes2[which(marker_genes2$split_id %in% mer_splits),]
+# mer_splits <- mer_splits[,c("bin", "split_id", "start_bp", "end_bp", "gene_direction", "gene")]
+# 
+# mer_splits$direction <- ifelse(mer_splits$gene_direction == "f", 1, -1)
+# 
+# mer_splits <- mer_splits[which(mer_splits$gene %in% c("merA","merB")),]
+# 
+# ggplot(mer_splits, aes(xmin = start_bp, xmax = end_bp, y = split_id, fill = gene, forward = direction)) + geom_gene_arrow() + facet_wrap(~ split_id, scales = "free", ncol = 1) +
+#   scale_fill_brewer(palette = "Set3") + theme_genes()
+# 
+# ggplot2::ggplot(hgc_splits, ggplot2::aes(xmin = start_bp, xmax = end_bp, y =
+#                                            split_id, fill = gene)) +
+#   geom_gene_arrow() +
+#   ggplot2::facet_wrap(~ split_id, scales = "free", ncol = 1) +
+#   ggplot2::scale_fill_brewer(palette = "Set3")
 # #APD predictions
 # #get all the sequences
 # APD_sequences <- readFASTA("http://aps.unmc.edu/AP/APD_AMPs_fasta_DongChuan.fa")
