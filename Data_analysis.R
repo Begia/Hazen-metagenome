@@ -4,7 +4,7 @@ if (!requireNamespace("BiocManager")) {
 
 packages <- c("ggplot2", "ranger", "svglite", "ggthemes", "phyloseq", "vegan", "Rtsne", "dbscan", "mefa", "caret", "data.table", "plyr", "protr", 
               "data.table", "MLPUGS", "compiler", "DESeq2", "ape", "gggenes", "car", "edarf", "biomformat", "limma", "seqinr", "taxize", "ggtree", 
-              "dplyr", "tidytree")
+              "dplyr", "tidytree", "robust")
 
 
 is.installed <- function(pkg) {
@@ -354,7 +354,7 @@ outfile <- c(matrix(c(paste(">",all_samples,sep=""), all_sequences), 2, byrow = 
 alignment_length <- nchar(outfile[2])
 too_short_seq_ncbi <- which(nchar(as.character(outfile)) -nchar( gsub("-", "", outfile, fixed=T)) > alignment_length*0.25)
 too_short_seq_ncbi <- too_short_seq_ncbi[too_short_seq_ncbi > max(grep("Bin", outfile)) + 1]
-too_short_seq_bins <- which(nchar(as.character(outfile)) -nchar( gsub("-", "", outfile, fixed=T)) > alignment_length*0.5)
+too_short_seq_bins <- which(nchar(as.character(outfile)) -nchar( gsub("-", "", outfile, fixed=T)) > alignment_length*0.25)
 too_short_seq_bins <- too_short_seq_bins[too_short_seq_bins <= max(grep("Bin", outfile)) + 1]
 too_short_seq <- c(too_short_seq_bins, too_short_seq_ncbi)
 outfile <- outfile[-sort(c(too_short_seq - 1, too_short_seq))]
@@ -421,6 +421,7 @@ new_ggtree_groupinfo <- split(new_ggtree$label, new_ggtree$Phylum_grp)
 new_ggtree <- ggtree::groupOTU(new_ggtree, new_ggtree_groupinfo)
 
 new_ggtree2 <- as.treedata(new_ggtree)
+write.tree(new_ggtree2@phylo, file = "E:/hazen_metagenome/results/Full_tree_with_supports.nwk")
 
 treepalette2 <- treepalette
 treepalette2[which(levels(new_ggtree$group) == "metagenome")] <- "black"
@@ -439,24 +440,6 @@ image <- ggtree(new_ggtree2, aes(color=group), ladderize = T, size=0.1) + geom_t
 
 ggsave(file = "E:/hazen_metagenome/results/CPR_phyla_nodes_supports.pdf", plot=image, units="cm", width=15, height=70, limitsize = F, scale=2.5)
 
-# nodestoplot <- new_ggtree[c("node", "label")]
-# nodestoplot <- nodestoplot[which(is.na(new_ggtree$source)),]
-# nodestoplot <- nodestoplot[-which(nodestoplot$node %in% node_annotation$node),]
-
-
-# image <- ggtree(new_ggtree2, aes(color=group), ladderize = T, size=0.1) + geom_text2(aes(subset=!isTip & !(node %in% node_annotation$node), label=label), hjust=-.3, size=0.2) + 
-#   geom_tiplab(aes(label=new_ggtree$fulltax), size=0.2) + 
-#   geom_tippoint(aes(alpha=new_ggtree$source), color="red", shape=20, size=0.2) + 
-#   scale_alpha_manual(values=c("1", "0")) +
-#   geom_treescale(linesize=0.2, fontsize=1, offset=1) +
-#   scale_color_manual(values=c(treepalette2))
-# 
-# for (i in 1:length(node_annotation$node)) {
-#   image <- collapse(image, node=node_annotation$node[i])
-#   image <- image + geom_cladelabel(node=node_annotation$node[i], node_annotation$clade[i], fontsize=0.3, color="black")
-# }
-# 
-# image <- image + geom_point2(aes(subset=(node %in% node_annotation$node)), size=0.2, color="darkgrey")
 image <- ggtree(new_ggtree2, aes(color=group), ladderize = T, size=0.1) + geom_text2(aes(subset=!isTip, label=round(as.numeric(label),2)), hjust=-.3, size=0.3) + 
   geom_tiplab(aes(label=new_ggtree$fulltax), size=0.3, hjust=.1) + 
   geom_tippoint(aes(alpha=new_ggtree$source), color="red", shape=20, size=0.2) + 
@@ -473,12 +456,6 @@ image <- ggtree(new_ggtree2, layout="circular", aes(color=group), ladderize = T,
   geom_treescale(linesize=0.2, fontsize=1, offset=1, x=-2) +
   scale_color_manual(values=c(treepalette2))
 
-# for (i in 1:length(node_annotation$node)) {
-#   image <- collapse(image, node=node_annotation$node[i])
-#   image <- image + geom_cladelabel(node=node_annotation$node[i], node_annotation$clade[i], fontsize=0.3, color="black")
-# }
-# 
-# image <- image + geom_point2(aes(subset=(node %in% node_annotation$node)), size=0.2, color="darkgrey")
 image <- image + xlim(-0.3, NA)
 image <- image %>% scaleClade(11641, 0.25)
 image <- image %>% scaleClade(8094, 0.25)
@@ -520,53 +497,65 @@ longbranching_chisq <- data.frame(row.names=c("short", "long"), NCBI=c(3656,246)
 longbranching_chisq_test <- chisq.test(longbranching_chisq, simulate.p.value = T, B = 1000)
 
 #calculate pairwise distances of the best NCBI matchest for the 2 unknown bins and plot a tree
-LH_MA_65_9_alignment <- read.alignment("E:/hazen_metagenome/processed_files/arb-silva.de_LH_MA_65_9.fasta", format="fasta")
+LH_MA_65_9_alignment <- read.alignment("E:/hazen_metagenome/processed_files/arb-silva.de_LH_MA_65_9_review.fasta", format="fasta")
 LH_MA_65_9_distance <- dist.alignment(LH_MA_65_9_alignment, matrix="identity", gap=0)
 LH_MA_65_9_distance2 <- 1-(as.matrix(LH_MA_65_9_distance)[,1]^2)
-names(LH_MA_65_9_distance2) <- gsub("_16S.*", "", names(LH_MA_65_9_distance2))
-names(LH_MA_65_9_distance2) <- (gsub("_partial.*", "", names(LH_MA_65_9_distance2)))
-LH_MA_65_9_tree <- read.tree("E:/hazen_metagenome/processed_files/arb-silva.de_LH_MA_65_9.tree")
+#edit names to retain only organismal identifiers
+names(LH_MA_65_9_distance2) <- gsub("_16S_ribosomal_RNA_gene&g_partial_sequence$", "", names(LH_MA_65_9_distance2))
+names(LH_MA_65_9_distance2) <- gsub("_partial_16S_rRNA_gene&g", "", names(LH_MA_65_9_distance2))
+names(LH_MA_65_9_distance2) <- gsub("_16S_ribosomal_RNA&g_partial_sequence&g", "", names(LH_MA_65_9_distance2))
+LH_MA_65_9_tree <- read.tree("E:/hazen_metagenome/processed_files/arb-silva.de_LH_MA_65_9_review.tree")
+#root on Acetomicrobium hydrogeniformans ATCC BAA-1850 strain OS1
+LH_MA_65_9_tree  <- root(LH_MA_65_9_tree, outgroup = 22, resolve.root=T)
 LH_MA_65_9_ggtree <- as_tibble(phy_tree(LH_MA_65_9_tree))
-LH_MA_65_9_ggtree$label <- gsub("_16S.*", "", LH_MA_65_9_ggtree$label)
-LH_MA_65_9_ggtree$label <- gsub("_partial.*", "", LH_MA_65_9_ggtree$label)
+LH_MA_65_9_ggtree$label <- gsub("_16S_ribosomal_RNA_gene&g_partial_sequence$", "", LH_MA_65_9_ggtree$label)
+LH_MA_65_9_ggtree$label <- gsub("_partial_16S_rRNA_gene&g", "", LH_MA_65_9_ggtree$label)
+LH_MA_65_9_ggtree$label <- gsub("_16S_ribosomal_RNA&g_partial_sequence", "", LH_MA_65_9_ggtree$label)
 LH_MA_65_9_ggtree$group <- NA
-LH_MA_65_9_ggtree$group[c(16, 19, 20, 49, 51, 52, 53)] <- "classified"
-LH_MA_65_9_ggtree$group[c(29)] <- "MAG"
+LH_MA_65_9_ggtree$group[c(2,3,4,5,20,21,22,38)] <- "classified"
+LH_MA_65_9_ggtree$group[c(45)] <- "MAG"
 LH_MA_65_9_ggtree$group[is.na(LH_MA_65_9_ggtree$group)] <- "unknown"
 LH_MA_65_9_ggtree$identity <- NA 
-LH_MA_65_9_ggtree$identity[1:length(LH_MA_65_9_distance2)] <- LH_MA_65_9_distance2[match(LH_MA_65_9_ggtree$label, names(LH_MA_65_9_distance2))]
+LH_MA_65_9_ggtree$identity[1:length(LH_MA_65_9_distance2)] <- LH_MA_65_9_distance2[!is.na(match(LH_MA_65_9_ggtree$label, names(LH_MA_65_9_distance2)))]
 LH_MA_65_9_ggtree2 <- as.treedata(LH_MA_65_9_ggtree)
-image <- ggtree(LH_MA_65_9_ggtree2, aes(color=group), ladderize = T, size=0.5) + geom_point2(aes(subset=(isTip & as.numeric(identity>0.85))), shape=18, size=3)  + 
-  geom_nodelab(aes(subset=(!isTip & as.numeric(label) > 0.75)), label="\u25CF", size=4, color="black", hjust=1) + 
-  geom_treescale(x=1, linesize=1, fontsize=5, offset=1) + geom_tiplab(hjust=-0.02) + scale_color_manual(values=c("darkgreen", "red", "black")) + ggplot2::xlim(0, 1.2)
-ggsave(file = "E:/hazen_metagenome/results/LH_MA_65_9_tree.svg", plot=image, units="cm", width=10, height=10, limitsize = F, scale=3)
+image <- ggtree(LH_MA_65_9_ggtree2, aes(color=group), ladderize = T, size=0.5) + geom_point2(aes(subset=(isTip & as.numeric(identity>0.9))), shape=18, size=3) + 
+  geom_rootedge(0.03) + geom_nodelab(aes(subset=(!isTip & as.numeric(label) > 0.75)), label="\u25CF", size=4, color="black", hjust=1) + 
+  geom_treescale(x=1, linesize=1, fontsize=5, offset=1) + geom_tiplab(hjust=-0.02) + scale_color_manual(values=c("darkgreen", "red", "black"))
+ggsave(file = "E:/hazen_metagenome/results/LH_MA_65_9_tree_review.svg", plot=image, units="cm", width=10, height=10, limitsize = F, scale=3)
 
-LH_MA_57_9_alignment <- read.alignment("E:/hazen_metagenome/processed_files/arb-silva.de_LH_MA_57_9.fasta", format="fasta")
+LH_MA_57_9_alignment <- read.alignment("E:/hazen_metagenome/processed_files/arb-silva.de_LH_MA_57_9_review.fasta", format="fasta")
 LH_MA_57_9_distance <- dist.alignment(LH_MA_57_9_alignment, matrix="identity", gap=0)
 LH_MA_57_9_distance2 <- 1-(as.matrix(LH_MA_57_9_distance)[,1]^2)
-names(LH_MA_57_9_distance2) <- gsub("_16S.*", "", names(LH_MA_57_9_distance2))
-names(LH_MA_57_9_distance2) <- gsub("_RNA.*", "", names(LH_MA_57_9_distance2))
-names(LH_MA_57_9_distance2) <- gsub("_gene.*", "", names(LH_MA_57_9_distance2))
-names(LH_MA_57_9_distance2) <- gsub("_partial.*", "", names(LH_MA_57_9_distance2))
-names(LH_MA_57_9_distance2) <- gsub("&a.*", "", names(LH_MA_57_9_distance2))
-LH_MA_57_9_tree <- read.tree("E:/hazen_metagenome/processed_files/arb-silva.de_LH_MA_57_9.tree")
+#edit names to retain only organismal identifiers
+names(LH_MA_57_9_distance2) <- gsub("&a", ":", names(LH_MA_57_9_distance2))
+names(LH_MA_57_9_distance2) <- gsub("_16S_ribosomal_RNA_gene&g_partial_sequence$", "", names(LH_MA_57_9_distance2))
+names(LH_MA_57_9_distance2) <- gsub("_RNA_for_16S_rRNA&g_partial_sequence&g", "", names(LH_MA_57_9_distance2))
+names(LH_MA_57_9_distance2) <- gsub("_gene_for_16S_ribosomal_RNA&g_partial_sequence&g", "", names(LH_MA_57_9_distance2))
+names(LH_MA_57_9_distance2) <- gsub("_gene_for_16S_rRNA&g_partial_sequence&g", "", names(LH_MA_57_9_distance2))
+names(LH_MA_57_9_distance2) <- gsub("_partial_16S_rRNA_gene&g", "", names(LH_MA_57_9_distance2))
+names(LH_MA_57_9_distance2) <- gsub("_16S_ribosomal_RNA&g_partial_sequence", "", names(LH_MA_57_9_distance2))
+LH_MA_57_9_tree <- read.tree("E:/hazen_metagenome/processed_files/arb-silva.de_LH_MA_57_9_review.tree")
+#root on Acetomicrobium hydrogeniformans ATCC BAA-1850 strain OS1
+LH_MA_57_9_tree  <- root(LH_MA_57_9_tree, outgroup = 28, resolve.root=T)
 LH_MA_57_9_ggtree <- as_tibble(phy_tree(LH_MA_57_9_tree))
-LH_MA_57_9_ggtree$label <- gsub("_16S.*", "", LH_MA_57_9_ggtree$label)
-LH_MA_57_9_ggtree$label <- gsub("_RNA.*", "", LH_MA_57_9_ggtree$label)
-LH_MA_57_9_ggtree$label <- gsub("_gene.*", "", LH_MA_57_9_ggtree$label)
-LH_MA_57_9_ggtree$label <- gsub("_partial.*", "", LH_MA_57_9_ggtree$label)
-LH_MA_57_9_ggtree$label <- gsub("&a.*", "", LH_MA_57_9_ggtree$label)
+LH_MA_57_9_ggtree$label <- gsub("&a", ":", LH_MA_57_9_ggtree$label)
+LH_MA_57_9_ggtree$label <- gsub("_16S_ribosomal_RNA_gene&g_partial_sequence$", "", LH_MA_57_9_ggtree$label)
+LH_MA_57_9_ggtree$label <- gsub("_RNA_for_16S_rRNA&g_partial_sequence&g", "", LH_MA_57_9_ggtree$label)
+LH_MA_57_9_ggtree$label <- gsub("_gene_for_16S_ribosomal_RNA&g_partial_sequence&g", "", LH_MA_57_9_ggtree$label)
+LH_MA_57_9_ggtree$label <- gsub("_gene_for_16S_rRNA&g_partial_sequence&g", "", LH_MA_57_9_ggtree$label)
+LH_MA_57_9_ggtree$label <- gsub("_partial_16S_rRNA_gene&g", "", LH_MA_57_9_ggtree$label)
+LH_MA_57_9_ggtree$label <- gsub("_16S_ribosomal_RNA&g_partial_sequence", "", LH_MA_57_9_ggtree$label)
 LH_MA_57_9_ggtree$group <- NA
-LH_MA_57_9_ggtree$group[c(11, 12, 22, 40)] <- "classified"
-LH_MA_57_9_ggtree$group[c(9)] <- "MAG"
+LH_MA_57_9_ggtree$group[c(15,24,26,27,28)] <- "classified"
+LH_MA_57_9_ggtree$group[c(29)] <- "MAG"
 LH_MA_57_9_ggtree$group[is.na(LH_MA_57_9_ggtree$group)] <- "unknown"
 LH_MA_57_9_ggtree$identity <- NA 
 LH_MA_57_9_ggtree$identity[1:length(LH_MA_57_9_distance2)] <- LH_MA_57_9_distance2[!is.na(match(LH_MA_57_9_ggtree$label, names(LH_MA_57_9_distance2)))]
 LH_MA_57_9_ggtree2 <- as.treedata(LH_MA_57_9_ggtree)
-image <- ggtree(LH_MA_57_9_ggtree2, aes(color=group), ladderize = T, size=0.5) + geom_point2(aes(subset=(isTip & as.numeric(identity>0.85))), shape=18, size=3)  + 
-  geom_nodelab(aes(subset=(!isTip & as.numeric(label) > 0.75)), label="\u25CF", size=4, color="black", hjust=1) + 
-  geom_treescale(x=1, linesize=1, fontsize=5, offset=1) + geom_tiplab(hjust=-0.02) + scale_color_manual(values=c("darkgreen", "red", "black")) + ggplot2::xlim(0, 1.2)
-ggsave(file = "E:/hazen_metagenome/results/LH_MA_57_9_tree.svg", plot=image, units="cm", width=10, height=10, limitsize = F, scale=3)
+image <- ggtree(LH_MA_57_9_ggtree2, aes(color=group), ladderize = T, size=0.5) + geom_point2(aes(subset=(isTip & as.numeric(identity>0.9))), shape=18, size=3) +
+  geom_rootedge(0.03) + geom_nodelab(aes(subset=(!isTip & as.numeric(label) > 0.75)), label="\u25CF", size=4, color="black", hjust=1) + 
+  geom_treescale(x=0.6, linesize=1, fontsize=5, offset=1) + geom_tiplab(hjust=-0.02) + scale_color_manual(values=c("darkgreen", "red", "black"))
+ggsave(file = "E:/hazen_metagenome/results/LH_MA_57_9_tree_review.svg", plot=image, units="cm", width=10, height=10, limitsize = F, scale=3)
 
 # #read in the taxonomic matam data
 matam_raw <- read.csv("E:/hazen_metagenome/matam_contingency_samples_combined.txt", quote = "", sep = "\t")
@@ -650,8 +639,6 @@ image <- ggplot(chemistry_data_plot, aes(x=Depth.cm, y=value.x, group=Site)) + g
 ggsave(file = "E:/hazen_metagenome/results/physicochemistry_new.svg", plot=image, units="cm", width=12, height=16, scale = 2)
 
 #construct phyloseq objects
-#metaphlan2 <- phyloseq(otu_table(metaphlan2_data, taxa_are_rows = T), sample_data(sample_mapping_data))
-#humann2 <- phyloseq(otu_table(humann2_data, taxa_are_rows = T), sample_data(sample_mapping_data))
 matam_mapping_data <- merge_samples(sample_data(sample_mapping_data), group="Sample")
 matam_mapping_data$Sample <- sample_order
 matam_mapping_data$Site <- c(rep("Deep Hole",3), rep("Snowgoose Bay", 3))
@@ -826,33 +813,22 @@ colnames(rel_abundances[[1]]) <- sample_order
 rel_abundances[[2]] <- read.csv("E:/Hazen_metagenome/processed_files/rel_abundance_genes.csv",sep=",",row.names=1)
 colnames(rel_abundances[[2]]) <- sample_order
 
-
 #construct phyloseq objects for (checkm) taxonomy, and metacyc/kegg pathways
 
 phylogeny <- c("Domain", "Phylum", "Class", "Order", "Family", "Genus", "Species")
 
-# checkm_taxonomy_raw <- read.csv("E:/hazen_metagenome/processed_files/tree_qa_lineage.out",sep="\t")
-# checkm_taxonomy <- as.character(checkm_taxonomy_raw$Taxonomy..contained.)
-# checkm_taxonomy <- gsub("[a-z]__", "", checkm_taxonomy)
-# checkm_taxonomy <- strsplit(checkm_taxonomy,";")
-# checkm_taxonomy <- as.matrix(rbind.fill(lapply(checkm_taxonomy,function(y){as.data.frame(t(y),stringsAsFactors=FALSE)})))
-# rownames(checkm_taxonomy) <- gsub("-contigs", "", checkm_taxonomy_raw$Bin.Id)
-# colnames(checkm_taxonomy) <- phylogeny
-# checkm_tree <- read.tree("E:/hazen_metagenome/processed_files/tree_qa.tre")
-# checkm_tree$tip.label <- gsub("-contigs", "", checkm_tree$tip.label)
 new_RP_MAG_taxonomy <- read.table("E:/hazen_metagenome/processed_files/RP_MAGs_taxonomy.txt", sep="\t", header=T, na.strings=c("","NA"))
 rownames(new_RP_MAG_taxonomy) <- new_RP_MAG_taxonomy$label
 new_RP_MAG_tree <- as_tibble(treeio::drop.tip(new_ggtree2, tip=new_ggtree$label[which(new_ggtree$source %in% "repository")]))
 new_RP_MAG_tree <- full_join(new_RP_MAG_tree %>% select(-(5:ncol(new_RP_MAG_tree))), new_RP_MAG_taxonomy, by="label")
 
-
+#scale to binned reads in each sample
 rel_abundance_pathways <- rel_abundances[[1]]
 rel_abundance_pathways$bin <- rownames(rel_abundances[[1]])
 rel_abundance_pathways <- rel_abundance_pathways[which(rel_abundance_pathways$bin %in% new_RP_MAG_tree$label),]
 for (i in 1:6) {
   rel_abundance_pathways[,i] <-  sapply(rel_abundance_pathways[,i], function(x) x <- x/sum(rel_abundance_pathways[,i])*100)
 }
-
 
 sequencing <- read.csv("E:/hazen_metagenome/sample_sequencing_stats.csv",sep="\t")
 sequencing <- sequencing[-which(sequencing$sample %in% "total"),]
@@ -1168,240 +1144,6 @@ genomes2 <- lapply(1:length(genomes),function(x) {
                                                  
 names(genomes2) <- genomes_qa$Bin.Id
 
-#export data for DS-FDR
-# dsfdr_out <- data.frame(otu_table(checkm_phylo))
-# dsfdr_out <- make_biom(dsfdr_out)
-# write_biom(dsfdr_out,"E:/Hazen_metagenome/processed_files/dsfdr_data.biom")
-
-#random forest analysis and partial dependence
-
-# #make tables of data available for models
-# variables <- colnames(sample_data(matam))[-1]
-# datasets <- c(rep("RP_MAG_phylo",length(variables)), rep("kegg_phylo",length(variables)), rep("metacyc_phylo",length(variables)), rep("antismash_phylo",length(variables)), rep("marker_phylo",length(variables)))
-# modelstorun_frame <- data.frame(set=datasets, model=variables)
-# continuous_variables <- variables[-1]
-
-
-# plot_pd_data <- list(NULL)
-# models <- list(NULL)
-# all_full_model_errors <- list(NULL)
-# all_model_errors_2 <- list(NULL)
-# models_2 <- list(NULL)
-# pd_data <- list(NULL)
-# plot_pd_data <- list(NULL)
-# 
-# #run random forests for all available data and select the best model with at least 5 predictors
-# for (j in 1:nrow(modelstorun_frame)) {
-#   #prepare data for input to random forest
-#   if (modelstorun_frame$set[j] %in% c("metacyc_phylo", "marker_phylo")) {
-#     predictors_phylo <- tax_glom(eval(parse(text=paste0(modelstorun_frame$set[j]))), taxrank="process")
-#     predictors <- t(otu_table(predictors_phylo))
-#     colnames(predictors) <- data.frame(tax_table(predictors_phylo))$process
-#   } else {
-#     predictors <-
-#       t(otu_table(eval(parse(
-#         text = paste0(modelstorun_frame$set[j])
-#       ))))
-#   }
-#   if (modelstorun_frame$model[j] %in% continuous_variables) {
-#     response <-
-#       eval(parse(
-#         text = paste0(
-#           "sample_data(",
-#           modelstorun_frame$set[j],
-#           ")$",
-#           modelstorun_frame$model[j]
-#         )
-#       ))
-# 
-#   } else {
-#     response <-
-#       as.factor(eval(parse(
-#         text = paste0(
-#           "sample_data(",
-#           modelstorun_frame$set[j],
-#           ")$",
-#           modelstorun_frame$model[j]
-#         )
-#       )))
-#   }
-#   rf_data <- data.frame(response, predictors)
-# 
-#   #run random forest model
-#   set.seed(42)
-#   classify <- ranger(response ~ ., data = rf_data, num.trees=5000, importance="impurity")
-#   models[[j]] <- classify
-# 
-#   if (modelstorun_frame$model[j] %in% continuous_variables) {
-# 
-#     #calculate MSPE estimate and CI for the full model
-#     pred1 <- classify$predictions
-#     y <-  rf_data$response
-#     n <- length(y)
-# 
-#     # psi is the mean squared prediction error (MSPE) estimate
-#     # sigma2 is the estimate of the variance of the MSPE
-#     psi1 <- mean((y - pred1)^2)
-#     sigma21 <- 1/n * var((y - pred1)^2)
-#     # 95% CI:
-#     full_MSPE <- c(psi1 - 1.96 * sqrt(sigma21), psi1, psi1 + 1.96 * sqrt(sigma21))
-# 
-#     #save errors for the full model
-#     all_full_model_errors[[j]] <- full_MSPE
-# 
-#     #sort the data by feature importance
-#     importances <- sort(importance(classify), decreasing = T)
-# 
-#     #add one feature at a time to the model in order of importance and compare MSPEs (consider only features with > mean importance)
-#     #when a minimum in MSPE is reached, stop and return the model that was run
-# 
-#     #reorder the sets
-#     rf_data_2 <- rf_data[c("response", names(importances))]
-# 
-#     comp_classify <- list(NULL)
-#     comp_MSPEs <- list(NULL)
-#     for (k in 1:length(importances)) {
-#       #if all the importances are below the mean (all are 0?) break the loop
-#       if (k == 0) {break}
-#       new_data <- data.frame(response=rf_data_2$response, rf_data_2[seq(2,k+1)])
-#       set.seed(42)
-#       comp_classify[[k]] <- ranger(response ~ ., data = new_data, num.trees=5000, importance="impurity")
-#       pred2 <- comp_classify[[k]]$predictions
-#       y2 <- new_data$response
-#       n2 <- length(y2)
-#       psi2 <- mean((y2 - pred2)^2)
-#       sigma22 <- 1/n * var((y2 - pred2)^2)
-#       # 95% CI:
-#       comp_MSPEs[[k]] <- c(psi2 - 1.96 * sqrt(sigma22), psi2, psi2 + 1.96 * sqrt(sigma22))
-#     }
-#     #find the minimum MSPE and get the feature names
-#     comp_MSPEs <- do.call("rbind", comp_MSPEs)
-#     nfeatures <- min(which(comp_MSPEs[,2] %in% min(comp_MSPEs[,2])))
-#     if (nfeatures < 5) {nfeatures <- 5}
-#     feature_names <- names(importances)[1:nfeatures]
-#     models_2[[j]] <- comp_classify[[nfeatures]]
-#     all_model_errors_2[[j]] <- comp_MSPEs[nfeatures,]
-#   } else {
-#     #calculate model Kappa for the full model (inherently imbalanced data sets so we are using Cohen's Kappa to compare the models)
-#     pred1 <- classify$predictions
-#     kappa1 <- postResample(pred1, rf_data$response)[[2]]
-#     all_full_model_errors[[j]] <- kappa1
-# 
-#     #sort the data by feature importance
-#     importances <- sort(importance(classify), decreasing = T)
-# 
-#     #add one feature at a time to the model in order of importance and compare Kappa values
-# 
-#     #reorder the sets
-#     rf_data_2 <- rf_data[c("response", names(importances))]
-# 
-#     comp_classify <- list(NULL)
-#     kappa2 <- NA
-#     for (k in 1:length(importances)) {
-#       #if all the importances are below the mean (all are 0?) break the loop
-#       if (k == 0) {break}
-#       new_data <- data.frame(response=rf_data_2$response, rf_data_2[seq(2,k+1)])
-#       set.seed(42)
-#       comp_classify[[k]] <- ranger(response ~ ., data = new_data, num.trees=5000, importance="impurity")
-#       pred2 <- comp_classify[[k]]$predictions
-#       kappa2[k] <- postResample(pred2, new_data$response)[[2]]
-#       if (kappa2[k] == 1 && k >= 5) {
-#         break
-#       }
-#     }
-#     if (length(kappa2) == length(importances)) {
-#       k <- min(which(kappa2 %in% max(kappa2)))
-#       if (k < 5) {k <- 5}
-#     }
-#     #this will store either values of the first "1" or the highest Kappa value of all the models run
-#     all_model_errors_2[[j]] <- kappa2[k]
-#     models_2[[j]] <- comp_classify[[k]]
-# 
-#   }
-# 
-#   #make partial dependence plots of the best model using all of the data
-#   nfeatures <- models_2[[j]]$num.independent.variables
-#   rf_data2 <- rf_data_2[1:(nfeatures+1)]
-#   pd <- partial_dependence(models_2[[j]], vars=colnames(rf_data2)[-1], data=rf_data2, n=c(25,nrow(rf_data2)))
-#   pd_data[[j]] <- pd
-#   plot_pd_data[[j]] <- plot_pd(pd)$data
-# 
-# }
-# 
-# #format and save partial dependency ggplots
-# pd_ggplots <- list(NULL)
-# for (k in 1:nrow(modelstorun_frame)) {
-#     plot_pd_data[[k]]$variable <- factor(gsub("\\.", " ", plot_pd_data[[k]]$variable))
-#     taxonomy_glom <- eval(parse(text = paste0(modelstorun_frame$set[k])))
-#     taxa_names(taxonomy_glom) <- factor(gsub("\\.", " ", taxa_names(taxonomy_glom)))
-#     taxonomy_glom <- prune_taxa(levels(plot_pd_data[[k]]$variable), taxonomy_glom)
-#     taxonomy_data.frame <- data.frame(variable=rownames(otu_table(taxonomy_glom)))
-#     taxonomy_merged <- merge(plot_pd_data[[k]],taxonomy_data.frame,by="variable")
-#     if (modelstorun_frame$model[k] %in% continuous_variables) {
-#       pd_ggplots[[k]] <- ggplot(data = taxonomy_merged, aes(value, response)) + geom_line(aes(colour=variable), size= 1) +
-#         scale_x_continuous() + labs(x="Normalized abundance", y=modelstorun_frame$model[k], colour="Function") +
-#         theme(legend.position="none")
-#       if (length(unique(taxonomy_merged$variable)) >= 15) {
-#         pd_ggplots[[k]] <- pd_ggplots[[k]] + facet_wrap(~variable, scales="free_x", ncol=8)
-#       } else if (length(unique(taxonomy_merged$variable)) >= 5) {
-#         pd_ggplots[[k]] <- pd_ggplots[[k]] + facet_wrap(~variable, scales="free_x", ncol=4)
-#       } else {
-#         pd_ggplots[[k]] <- pd_ggplots[[k]] + facet_wrap(~variable, scales="free_x", ncol=2)
-#       }
-#     } else {
-#       pd_ggplots[[k]] <- ggplot(data = taxonomy_merged, aes(value, prediction*100)) + geom_line(aes(colour=variable), size= 1) +
-#         scale_x_continuous(labels=scaleFUN) + labs(x="Normalized abundance", y="Prediction (% chance to be classified)", colour="Function") +
-#         facet_grid(class~variable, scales="free_x") + theme(legend.position="none")
-#     }
-#   if ((length(unique(taxonomy_merged$variable)) >= 20 && !(modelstorun_frame$model[k] %in% continuous_variables)) |
-#       (length(unique(taxonomy_merged$variable)) >= 40 && modelstorun_frame$model[k] %in% continuous_variables)) {
-#     ggsave(file = paste0("E:/hazen_metagenome/results/", modelstorun_frame$set[k], "_pd_subplot_",modelstorun_frame$model[k],".svg"), plot=pd_ggplots[[k]],
-#            units="mm", width=1200, height=200)
-#   } else if (length(unique(taxonomy_merged$variable)) >= 10) {
-#     ggsave(file = paste0("E:/hazen_metagenome/results/", modelstorun_frame$set[k], "_pd_subplot_",modelstorun_frame$model[k],".svg"), plot=pd_ggplots[[k]],
-#            units="mm", width=600, height=200)
-#   } else {
-#     ggsave(file = paste0("E:/hazen_metagenome/results/", modelstorun_frame$set[k], "_pd_subplot_",modelstorun_frame$model[k],".svg"), plot=pd_ggplots[[k]],
-#            units="mm", width=300, height=200)
-#   }
-# }
-# 
-# models_out <- modelstorun_frame
-# models_out$set <- as.vector(models_out$set)
-# models_out$n.before <- NA
-# models_out$MSPE.before <- NA
-# models_out$CI.95.before <- NA
-# models_out$r2.before <- NA
-# models_out$Kappa.before <- NA
-# models_out$OOBPredErr.before <- NA
-# models_out$n.after <- NA
-# models_out$MSPE.after <- NA
-# models_out$CI.95.after <- NA
-# models_out$r2.after <- NA
-# models_out$Kappa.after <- NA
-# models_out$OOBPredErr.after <- NA
-# for (n in 1:nrow(models_out)) {
-#   models_out$n.before[n] <- models[[n]]$num.independent.variables
-#   models_out$n.after[n] <- models_2[[n]]$num.independent.variables
-#   if (models_out$model[n] %in% continuous_variables) {
-#     models_out$MSPE.before[n] <- round(all_full_model_errors[[n]][2],2)
-#     models_out$CI.95.before[n] <- paste0(round(all_full_model_errors[[n]][1],2),"-",round(all_full_model_errors[[n]][3],2))
-#     models_out$r2.before[n] <- round(models[[n]]$r.squared,3)
-#     models_out$MSPE.after[n] <- round(all_model_errors_2[[n]][2],2)
-#     models_out$CI.95.after[n] <- paste0(round(all_model_errors_2[[n]][1],2),"-",round(all_model_errors_2[[n]][3],2))
-#     models_out$r2.after[n] <- round(models_2[[n]]$r.squared,3)
-#   } else {
-#     models_out$Kappa.before[n] <- round(all_full_model_errors[[n]],2)
-#     models_out$OOBPredErr.before[n] <- round(models[[n]]$prediction.error * 100,2)
-#     models_out$Kappa.after[n] <- round(all_model_errors_2[[n]],2)
-#     models_out$OOBPredErr.after[n] <- round(models_2[[n]]$prediction.error * 100,2)
-#   }
-# }
-# 
-# 
-# write.csv(models_out,"E:/Hazen_metagenome/results/final/results_table.csv",quote=F)
-
-
 all_levels <- list(kegg_levels, metacyc_annotation[,1:2], antismash_levels, data.frame(resfam_gene_annotation$gene, resfam_gene_annotation$category), data.frame(marker_gene_annotation$gene, marker_gene_annotation$process))
 genome_list_2 <- list(NULL)
 genome_list_3 <- list(NULL)
@@ -1509,10 +1251,6 @@ ncbi_kegg_pathways <- rbind(ncbi_kegg_pathways, CPR_kegg_pathways)
 colnames(ncbi_kegg_pathways) <- colnames_pathways
 ncbi_kegg_pathways <- ncbi_kegg_pathways[which(ncbi_kegg_pathways$bin %in% ncbi_to_keep$label),]
 
-
-#rownames(kegg_pathways2) <- kegg_pathways2$Group.1
-#kegg_pathways2 <- kegg_pathways2[,-1]
-
 ncbi_metacyc_pathways <- readLines("E:/hazen_metagenome/processed_files/ncbi_genomes_metacyc_pathways.txt")
 ncbi_metacyc_pathways <- strsplit(ncbi_metacyc_pathways,"\t")
 ncbi_metacyc_pathways <- do.call(rbind.data.frame, ncbi_metacyc_pathways)[1:3]
@@ -1526,9 +1264,6 @@ ncbi_metacyc_pathways <- ncbi_metacyc_pathways[which(ncbi_metacyc_pathways$bin %
 ncbi_metacyc_pathways <- merge(ncbi_metacyc_pathways, metacyc_annotation, by="pathway")
 #remove suspicious (archaeal) pathways
 ncbi_metacyc_pathways <- ncbi_metacyc_pathways[-which(ncbi_metacyc_pathways$process %in% "Suspicious"),]
-
-#rownames(metacyc_pathways2) <- metacyc_pathways2$Group.1
-#metacyc_pathways2 <- metacyc_pathways2[,-1]
 
 ncbi_marker_genes <- read.table("E:/hazen_metagenome/processed_files/ncbi_genomes_individual_genes.txt", sep = " ")
 CPR_marker_genes <- read.table("E:/hazen_metagenome/processed_files/CPR_genomes_individual_genes.txt", sep = " ")
@@ -1577,7 +1312,7 @@ ncbi_genomes <- lapply(1:nrow(ncbi_to_keep), function(x) {
 names(ncbi_genomes) <- ncbi_to_keep$label
 
 
-#continue from here ########### set new levels for NCBI genomes ###########
+#set new levels for NCBI genomes
 ncbi_genome_list_2 <- list(NULL)
 ncbi_genome_list_3 <- list(NULL)
 for (k in 1:6) {
@@ -1886,7 +1621,7 @@ process_levels <- rev(c("Cell structure biosynthesis","Fatty acid and lipid bios
   "Phosphate degradation","Organic matter degradation","Hydrogen production","Phototrophy","Autotrophic CO2 assimilation",
   "Fermentation","Energy generation","Energy conservation","Methylotrophic metabolism","Metabolic pathway",
   "N fixation","Nitrification bacteria","Denitrification","DNRA","DNRA Polysulfide reduction",
-  "Sulfur compound reduction","Sulfite reduction to sulfide reversible", "Sulfite reduction to sulfide",
+  "Sulfite reduction to sulfide reversible", "Sulfite reduction to sulfide",
   "Sulfur compound oxidation","Sulfide oxidation","Sulfite oxidation to sulfate",
   "Phosphorus uptake", "Polyphosphate processing","Mercury resistance","Mercury methylation","Arsenic resistance",
   "Pb Zn resistance or homeostasis","Cd Pb resistance","Cd Co Cu Pb Zn resistance or homeostasis",
@@ -1894,7 +1629,7 @@ process_levels <- rev(c("Cell structure biosynthesis","Fatty acid and lipid bios
 
 all_processes$process <- factor(all_processes$process, levels=process_levels)
 all_processes <- all_processes[order(all_processes$process),]
-all_processes$category <- c(rep("Metal homeostasis", 8), rep("Biogeochemical cycles", 13), rep("Energy metabolism", 8), rep("Degradation", 9), rep("Biosynthesis", 9))
+all_processes$category <- c(rep("Metal homeostasis", 8), rep("Biogeochemical cycles", 13), rep("Energy metabolism", 7), rep("Degradation", 9), rep("Biosynthesis", 9))
 all_processes$category <- factor(all_processes$category, levels=rev(unique(all_processes$category)))
 
 #separate chi-squared tests for MAGs and LBMs
@@ -1902,7 +1637,7 @@ MAG_processes_chi <- all_processes[c(2,3)]
 rownames(MAG_processes_chi) <- all_processes$process
 MAG_processes_chi[is.na(MAG_processes_chi)] <- 0
 MAG_processes_chi <- MAG_processes_chi[rowSums(MAG_processes_chi) > 0,]
-cisq_test_MAG_processes <- chisq.test(MAG_processes_chi, simulate.p.value = T, B = 1000)
+cisq_test_MAG_processes <- chisq.test(MAG_processes_chi, simulate.p.value = T, B = 10000)
 contrib_MAG_processes <- 100*cisq_test_MAG_processes$residuals^2/cisq_test_MAG_processes$statistic
 #subset to processes that contribute more than equally (100 % / 47 processes) to the total chi-squared score
 most_important_MAG_processes <- cisq_test_MAG_processes$residuals[rowSums(round(contrib_MAG_processes,3)) > (100/47),]
@@ -1938,14 +1673,16 @@ compare_processes_chi[is.na(compare_processes_chi)] <- 0
 compare_processes_chi <- compare_processes_chi[rowSums(compare_processes_chi) > 0,]
 cisq_test_compare_processes <- chisq.test(compare_processes_chi, simulate.p.value = T, B = 1000)
 
-all_processes[,2:5] <- sweep(all_processes[,2:5], 2, c(2486, 55,53,18), FUN = '/')
+all_processes[,2:5] <- sweep(all_processes[,2:5], 2, c(2486,55,53,18), FUN = '/')
 all_processes[,2:5] <- round(all_processes[,2:5]*100, 0)
 all_processes[is.na(all_processes)] <- 0
 all_processes_melt <- melt(all_processes)
 all_processes_melt$variable <- factor(all_processes_melt$variable, levels=rev(colnames(all_processes)[2:5]))
+#remove LBM groups from the figure because of changes to the MS
+all_processes_melt <- all_processes_melt[which(all_processes_melt$variable %in% c("MAGs", "Reference genomes")),]
 
 image <- ggplot(all_processes_melt, aes(y=value, x=process, fill=variable)) + geom_col(position = position_dodge2(width = 0.75, preserve = "single"))  +#geom_point(aes(size=value), color="steelblue", shape=1, stroke=3) +
-  coord_flip() + scale_fill_brewer(name="Collection",palette="Paired", guide = guide_legend(reverse = F)) + 
+  coord_flip() + scale_fill_manual(name="Collection", values=c("#b2df8a", "#33a02c")) + 
   facet_grid(category~., scales="free", space="free") + ylab("Present in % of genomes") + guides(fill = guide_legend(nrow = 2,byrow = F, reverse = T)) +
   theme(axis.text.y = element_text(size = 16), strip.text.y = element_text(angle=0, hjust=0), panel.border = element_blank(), 
         axis.ticks.y = element_blank(), axis.title.y = element_blank(), plot.title = element_text(size=28, hjust = 0.5),
@@ -1996,273 +1733,130 @@ process_LBM_list <- aggregate(mean~process+LBM, process_LBM_list, sum)
 process_LBM_list <- process_LBM_list[order(process_LBM_list$process, process_LBM_list$mean, decreasing = T),]
 write.csv(process_LBM_list, "E:/hazen_metagenome/results/processes_of_interest_LBM.csv", quote=F, row.names = F)
 
-# checkm_model_shared <- list(NULL)
-# checkm_model_present <- list(NULL)
-# for (i in 1:length(variables)){
-#   bins <- data.frame(bin=names(importance(models_2[[i]])), value=rep(NA, length(names(importance(models_2[[i]])))))
-#   if (i == 1) {
-#     bin_pd_data <- plot_pd_data[[i]][seq(1:(nrow(bins)*25)),]
-#   } else {
-#     bin_pd_data <- plot_pd_data[[i]]
-#       }
-#   for (j in 1:nrow(bins)){
-#     if (i == 1) {
-#       bin_dots_y <- bin_pd_data$prediction[which(as.character(bin_pd_data$variable) == as.character(bins[j,1]))]
-#     } else {
-#         bin_dots_y <- bin_pd_data$response[which(as.character(bin_pd_data$variable) == as.character(bins[j,1]))]
-#         }
-#     if (bin_dots_y[1] < bin_dots_y[length(bin_dots_y)]) {bins[j,2] <- "positive"} else {bins[j,2] <- "negative"}
-#   }
-#   positives <- as.character(bins$bin[which(bins$value %in% "positive")])
-#   positives <- genomes2[positives]
-#   positives2 <- list(NULL)
-#   positives3 <- list(NULL)
-#   for (k in 1:7) {
-#     if (k < 3) {
-#       positives2[[k]] <- do.call(rbind,lapply(positives, '[[', k))
-#       positives3[[k]] <- do.call(rbind,lapply(positives, '[[', k))
-#       }
-#     else if (k < 6) {
-#       common_elements <- lapply(positives, '[[', k)
-#       common_elements <- Reduce(intersect, do.call(c,common_elements))
-#       positives2[[k]] <- common_elements
-#       all_elements <- data.frame(table(do.call(rbind,lapply(positives, '[[', k))))
-#       all_elements <- all_elements[match(all_levels[[k-2]], as.character(all_elements$Var1)),]
-#       colnames(all_elements) <- c("pathway", "count")
-#       all_elements <- all_elements[which(all_elements$count > 0),]
-#       if (length(rownames(all_elements)) > 0)  {rownames(all_elements) <- c(1:nrow(all_elements))}
-#       positives3[[k]] <- all_elements
-#     } else if (k == 6) {
-#       common_elements <- lapply(positives, '[[', k)
-#       common_elements1 <- Reduce(intersect, lapply(common_elements, '[[', 1))
-#       common_elements2 <- Reduce(intersect, lapply(common_elements, '[[', 2))
-#       common_elements <- list(common_elements1, common_elements2)
-#       names(common_elements) <- c("genes", "category")
-#       positives2[[k]] <- common_elements
-#       all_elements <- data.frame(do.call(rbind,lapply(positives, '[[', k)))
-#       all_elements1 <- data.frame(table(all_elements$resfams))
-#       all_elements1 <- all_elements1[match(as.character(all_levels[[k-2]]$resfam_gene_annotation.gene), as.character(all_elements1$Var1)),]
-#       colnames(all_elements1) <- c("gene", "count")
-#       all_elements1 <- all_elements1[which(all_elements1$count > 0),]
-#       all_elements2 <- unique(data.frame(table(all_elements$category)))
-#       all_elements2 <- all_elements2[match(unique(as.character(all_levels[[k-2]]$resfam_gene_annotation.category)), as.character(all_elements2$Var1)),]
-#       colnames(all_elements2) <- c("category", "count")
-#       all_elements2 <- all_elements2[which(all_elements2$count > 0),]
-#       all_elements <- list(all_elements1, all_elements2)
-#       if (length(rownames(all_elements)) > 0)  {rownames(all_elements) <- c(1:nrow(all_elements))}
-#       names(all_elements) <- c("genes", "category")
-#       positives3[[k]] <- all_elements
-#     } 
-#     else {
-#       common_elements <- lapply(positives, '[[', k)
-#       common_elements1 <- Reduce(intersect, lapply(common_elements, '[[', 1))
-#       common_elements2 <- Reduce(intersect, lapply(common_elements, '[[', 2))
-#       common_elements <- list(common_elements1, common_elements2)
-#       names(common_elements) <- c("genes", "processes")
-#       positives2[[k]] <- common_elements
-#       all_elements <- data.frame(do.call(rbind,lapply(positives, '[[', k)))
-#       all_elements1 <- data.frame(table(all_elements$marker_gene))
-#       all_elements1 <- all_elements1[match(as.character(all_levels[[k-2]]$marker_gene_annotation.gene), as.character(all_elements1$Var1)),]
-#       colnames(all_elements1) <- c("gene", "count")
-#       all_elements1 <- all_elements1[which(all_elements1$count > 0),]
-#       all_elements2 <- unique(data.frame(table(all_elements$process)))
-#       all_elements2 <- all_elements2[match(unique(as.character(all_levels[[k-2]]$marker_gene_annotation.process)), as.character(all_elements2$Var1)),]
-#       colnames(all_elements2) <- c("process", "count")
-#       all_elements2 <- all_elements2[which(all_elements2$count > 0),]
-#       all_elements <- list(all_elements1, all_elements2)
-#       if (length(rownames(all_elements)) > 0)  {rownames(all_elements) <- c(1:nrow(all_elements))}
-#       names(all_elements) <- c("genes", "processes")
-#       positives3[[k]] <- all_elements
-#     }
-#   }
-#   names(positives2) <- names(genomes2[[1]])
-#   names(positives3) <- names(genomes2[[1]])
-#   negatives <- as.character(bins$bin[which(bins$value %in% "negative")])
-#   negatives <- genomes2[negatives]
-#   negatives2 <- list(NULL)
-#   negatives3 <- list(NULL)
-#   for (k in 1:6) {
-#     if (k < 3) {
-#       negatives2[[k]] <- do.call(rbind,lapply(negatives, '[[', k))
-#       negatives3[[k]] <- do.call(rbind,lapply(negatives, '[[', k))
-#       }
-#     else if (k < 6) {
-#       common_elements <- lapply(negatives, '[[', k)
-#       common_elements <- Reduce(intersect, do.call(c,common_elements))
-#       negatives2[[k]] <- common_elements
-#       all_elements <- data.frame(table(do.call(rbind,lapply(negatives, '[[', k))))
-#       all_elements <- all_elements[match(all_levels[[k-2]], as.character(all_elements$Var1)),]
-#       colnames(all_elements) <- c("pathway", "count")
-#       all_elements <- all_elements[which(all_elements$count > 0),]
-#       if (length(rownames(all_elements)) > 0)  {rownames(all_elements) <- c(1:nrow(all_elements))}
-#       negatives3[[k]] <- all_elements
-#     } else {
-#       common_elements <- lapply(negatives, '[[', k)
-#       common_elements1 <- Reduce(intersect, lapply(common_elements, '[[', 1))
-#       common_elements2 <- Reduce(intersect, lapply(common_elements, '[[', 2))
-#       common_elements <- list(common_elements1, common_elements2)
-#       names(common_elements) <- c("genes", "processes")
-#       negatives2[[k]] <- common_elements
-#       all_elements <- data.frame(do.call(rbind,lapply(negatives, '[[', k)))
-#       all_elements1 <- data.frame(table(all_elements$marker_gene))
-#       all_elements1 <- all_elements1[match(as.character(all_levels[[k-2]]$marker_gene_annotation.gene), as.character(all_elements1$Var1)),]
-#       colnames(all_elements1) <- c("gene", "count")
-#       all_elements1 <- all_elements1[which(all_elements1$count > 0),]
-#       all_elements2 <- unique(data.frame(table(all_elements$process)))
-#       all_elements2 <- all_elements2[match(unique(as.character(all_levels[[k-2]]$marker_gene_annotation.process)), as.character(all_elements2$Var1)),]
-#       colnames(all_elements2) <- c("process", "count")
-#       all_elements2 <- all_elements2[which(all_elements2$count > 0),]
-#       all_elements <- list(all_elements1, all_elements2)
-#       if (length(rownames(all_elements)) > 0)  {rownames(all_elements) <- c(1:nrow(all_elements))}
-#       names(all_elements) <- c("genes", "processes")
-#       negatives3[[k]] <- all_elements
-#     }
-#   }
-#   names(negatives2) <- names(genomes2[[1]])
-#   result_list1 <- list(positives2, negatives2)
-#   names(result_list1) <- c("positives", "negatives")
-#   checkm_model_shared[[i]] <- result_list1
-#   names(checkm_model_shared)[i] <- as.character(modelstorun_frame$model[i])
-#   names(negatives3) <- names(genomes2[[1]])
-#   result_list2 <- list(positives3, negatives3)
-#   names(result_list2) <- c("positives", "negatives")
-#   checkm_model_present[[i]] <- result_list2
-#   names(checkm_model_present)[i] <- as.character(modelstorun_frame$model[i])
-# }
-# 
-# unknown_checkm_phylo <- subset_taxa(quality_checkm_phylo, !(Phylum %in% phyla_levels_all))
-# plot_tree(quality_checkm_phylo, nodelabf=nodeplotboot(), ladderize="left", color="Phylum", size="Abundance", shape="Site") + coord_polar(theta="y") + 
-#   guides(shape = guide_legend(override.aes = list(size = 5)), color = guide_legend(override.aes = list(size = 5))) +
-#   scale_color_brewer(palette="Set3")
-# radiation_phylo <- subset_taxa(quality_checkm_phylo, is.na(Phylum))
-# 
-# plot_tree(radiation_phylo, nodelabf=nodeplotboot(), ladderize="left", size="Abundance", shape="Site", color="Sample") +  
-#   guides(shape = guide_legend(override.aes = list(size = 5)), color = guide_legend(override.aes = list(size = 5))) +
-#   scale_color_brewer(palette="Set3")
-# 
-# top10_names <- list(NULL)
-# for (i in 1:length(sample_names(quality_checkm_phylo))) {
-#   top10 <- subset_samples(quality_checkm_phylo, Sample == sample_names(quality_checkm_phylo)[i])
-#   top10_names[[i]] <- names(sort(taxa_sums(top10), decreasing = TRUE)[1:10])
-# }
-# top10_df <- reshape2::melt(top10_names)
-# top10_df <- as.data.frame.matrix(table(top10_df))
-# #colnames(top10_df) <- sample_names(quality_checkm_phylo)
-# sites_venn <- data.frame(Deep.Hole = apply(top10_df[ , c(1:3)] , 1 , paste , collapse = "" ), Snowgoose.Bay = apply(top10_df[ , c(4:6)] , 1 , paste , collapse = "" ))
-# sites_venn2 <- data.frame(Deep.Hole = ifelse(sites_venn$Deep.Hole %in% "000", 0, 1), Snowgoose.Bay = ifelse(sites_venn$Snowgoose.Bay %in% "000", 0, 1))
-# top10_venn <- vennCounts(sites_venn2)
-# vennDiagram(top10_venn)
-# 
-# top10_DH <- subset_samples(quality_checkm_phylo, Site == "Deep Hole")
-# top10_DH_names <- names(sort(taxa_sums(top10_DH), decreasing = TRUE)[1:10])
-# top10_DH <- prune_taxa(top10_DH_names, top10_DH)
-# 
-# top10_SB <- subset_samples(quality_checkm_phylo, Site == "Snowgoose Bay")
-# top10_SB_names <- names(sort(taxa_sums(top10_SB), decreasing = TRUE)[1:10])
-# top10_SB <- prune_taxa(top10_SB_names, top10_SB)
-# 
-# hgc_splits <- unique(as.character(marker_genes2$split_id[which(marker_genes2$gene %in% c("hgcA","hgcB"))]))
-# hgc_splits <- marker_genes2[which(marker_genes2$split_id %in% hgc_splits),]
-# hgc_splits <- hgc_splits[,c("bin", "split_id", "start_bp", "end_bp", "gene_direction", "gene")]
-# hgc_splits$start_bp <- as.numeric(hgc_splits$start_bp)
-# hgc_splits$end_bp <- as.numeric(hgc_splits$end_bp)
-# 
-# 
-# hgc_splits$direction <- ifelse(hgc_splits$gene_direction == "f", 1, -1)
-# 
-# #hgc_splits <- hgc_splits[which(hgc_splits$gene %in% c("hgcA","hgcB")),]
-# 
-# ggplot(hgc_splits, aes(xmin = start_bp, xmax = end_bp, y = split_id, fill = gene, forward = direction)) + geom_gene_arrow() + 
-#   facet_wrap(~ split_id, scales="free") +
-#   scale_fill_brewer(palette = "Set3") + theme_genes() + ggtitle("Spirochaetales bacteria hgcAB genes")
-# 
-# mer_splits <- unique(as.character(marker_genes2$split_id[which(marker_genes2$gene %in% "merA")]))
-# mer_splits <- marker_genes2[which(marker_genes2$split_id %in% mer_splits),]
-# mer_splits <- mer_splits[,c("bin", "split_id", "start_bp", "end_bp", "gene_direction", "gene")]
-# 
-# mer_splits$direction <- ifelse(mer_splits$gene_direction == "f", 1, -1)
-# 
-# mer_splits <- mer_splits[which(mer_splits$gene %in% c("merA","merB")),]
-# 
-# ggplot(mer_splits, aes(xmin = start_bp, xmax = end_bp, y = split_id, fill = gene, forward = direction)) + geom_gene_arrow() + facet_wrap(~ split_id, scales = "free", ncol = 1) +
-#   scale_fill_brewer(palette = "Set3") + theme_genes()
-# 
-# ggplot2::ggplot(hgc_splits, ggplot2::aes(xmin = start_bp, xmax = end_bp, y =
-#                                            split_id, fill = gene)) +
-#   geom_gene_arrow() +
-#   ggplot2::facet_wrap(~ split_id, scales = "free", ncol = 1) +
-#   ggplot2::scale_fill_brewer(palette = "Set3")
-# #APD predictions
-# #get all the sequences
-# APD_sequences <- readFASTA("http://aps.unmc.edu/AP/APD_AMPs_fasta_DongChuan.fa")
-# #get all labels in the 5 categories
-# APD_categories <- c("Antibacterial", "Antiviral", "Antifungal", "Antiparasitic", "Anticancer")
-# APD_accessions <- list(NULL)
-# for (i in 1:length(APD_categories)) {
-#   page <- readLines(paste0("E:/hazen_metagenome/", APD_categories[i], ".html"))
-#   page <- gsub(".*> (AP[0-9]{5}) </a>", "\\1", page[grep("AP[0-9]{5}", page)])
-#   APD_accessions[[i]] <- page
-# }
-# #unique_APD <- unique(unlist(APD_accessions))
-# 
-# #limit the data set
-# APD_data <- APD_data[which(nchar(APD_data) <= 60)]
-# APD_data <- APD_sequences[which(nchar(APD_sequences) >= 10)]
-# #APD_data <- APD_data[which(names(APD_data) %in% unique_APD)]
-# APD_names <- names(APD_data)
-# 
-# #extract features
-# APD_AAC <- sapply(APD_data, extractAAC)
-# APD_DC <- sapply(APD_data, extractDC)
-# APD_data <- data.table(t(rbind(APD_AAC, APD_DC)))
-# APD_data$accession <- APD_names
-# 
-# #label the sequences
-# for (i in 1:5) {
-#   APD_data[, APD_categories[i] := ifelse(APD_data$accession %in% APD_accessions[[i]], 1, 0)]
-# }
-# 
-# # rtsne_APD <- data.frame(Rtsne(APD_data[, !names(APD_data) %in% APD_categories, with=F], perplexity = 30)$Y)
-# # rownames(rtsne_APD) <- APD_data$accession
-# # rtsne_APD <- cbind(rtsne_APD, APD_data[, names(APD_data) %in% APD_categories, with=F])
-# # ggplot(data = rtsne_APD, aes(x = X1, y = X2)) +  geom_point(aes(color=factor(Anticancer)))
-# 
-# 
-# #implement caret
-# 
-# #split data set to training and testing
-# set.seed(42)
-# split=0.66
-# trainIndex <- APD_data[sample(.N, split*nrow(APD_data))]$accession
-# APD_train <- APD_data[APD_data$accession %in% trainIndex]
-# APD_train$accession <- list(NULL)
-# APD_test <- APD_data[!APD_data$accession %in% trainIndex]
-# APD_test$accession <- list(NULL)
-# 
-# #fit the ECC model (using random forests as the classifier)
-# fit <- ecc(APD_train[, !APD_categories, with=F], APD_train[, APD_categories, with=F], m = 7, .f = randomForest::randomForest, replace = TRUE, run_parallel = TRUE, prop_subset = 0.8)
-# 
-# #test the unused data
-# pugs <- predict(fit, APD_test[, !APD_categories, with=F], burn.in = 500, n.iters = 1500, thin = 15, .f = randomForest:::predict.randomForest, type = "prob", run_parallel = TRUE)
-# test_pred2 <- summary(pugs, type = "prob")
-# 
-# #validate the model
-# model_stats <- validate_pugs(pugs, APD_test[, APD_categories, with=F])
-# 
-# 
-# candidateAP <- readFASTA("E:/hazen_metagenome/PROKKA_03022018_AP_cand2.faa")
-# candidateAP <- candidateAP[which(nchar(candidateAP) <= 80)]
-# candidateAP <- candidateAP[which(nchar(candidateAP) >= 10)]
-# candidateAP_names <- names(candidateAP)
-# 
-# candidateAP_AAC <- sapply(candidateAP, extractAAC)
-# candidateAP_DC <- sapply(candidateAP, extractDC)
-# candidateAP <- data.table(t(rbind(candidateAP_AAC, candidateAP_DC)))
-# #candidateAP <- cbind(candidateAP, t(data.frame(row.names=APD_categories, rep(0, length(APD_categories)))))
-# #a <- rbind(candidateAP, APD_test[1:5])
-# 
-# 
-# candidateAP_pugs <- predict(fit, candidateAP[, !APD_categories, with=F], burn.in = 500, n.iters = 1500, thin = 15, .f = randomForest:::predict.randomForest, type = "prob", run_parallel = TRUE)
-# candidateAP_classifications <- data.frame(summary(candidateAP_pugs, type ="prob"))
-# rownames(candidateAP_classifications) <- candidateAP_names
-# 
+#review checks
+#1. add N50 to Table S4
+new_S4 <- do.call(rbind,lapply(genomes2, '[[', 1))
+new_S4 <- merge(new_S4, genome_gene_lengths[[1]][,c(1,4,5)], by.x="row.names", by.y="bins")
+new_S4 <- new_S4[order(new_S4$Completeness, decreasing = T),]
+write.csv(new_S4, "E:/hazen_metagenome/results/new_Table_S4.csv", quote=F, row.names = F) #added as a column to the Table S4 in SI
+
+#2. Check how many proteins are missing in the LBM compared to others and is there a significant difference
+
+raw_files2 <- unlist(raw_files)
+raw_files2 <- raw_files2[which(grepl("Bin",raw_files2))]
+LBM_n_RP <- list(NULL)
+for (i in 1:length(names(longbranch_genomes))) {
+  binname <- names(longbranch_genomes)[i]
+  LBM_n_RP[[i]] <- data.frame(Bin=binname, n_RP=length(grep(paste0(binname,"$"), raw_files2)), LBM="yes")
+}
+
+non_LBM <- names(genomes2[!(names(genomes2) %in% names(longbranch_genomes))])
+non_LBM_n_RP <- list(NULL)
+for (i in 1:length(non_LBM)) {
+  binname <- non_LBM[i]
+  non_LBM_n_RP[[i]] <- data.frame(Bin=binname, n_RP=length(grep(paste0(binname,"$"), raw_files2)), LBM="no")
+}
+
+RP_comparison <- rbind(do.call(rbind, LBM_n_RP), do.call(rbind, non_LBM_n_RP))
+ggplot(RP_comparison, aes(x=LBM, y=n_RP)) + geom_boxplot()
+summary(aov(n_RP ~ LBM, data=RP_comparison))
+
+#3. Check if there is a difference between the lengths of the alignments (how many gaps)
+sequences <- data.frame(Bin=gsub(">", "", outfile[which(grepl("Bin", outfile))]), seq=nchar(gsub("-","",outfile[which(grepl("Bin", outfile))+1])))
+sequences <- merge(sequences, RP_comparison, by="Bin")
+
+ggplot(sequences, aes(x=LBM, y=seq)) + geom_boxplot()
+summary(aov(seq ~ LBM, data=sequences))
+
+#4. Check branch length against n missing bases
+sequences$ngap <- nchar(gsub("[ATGC]","",outfile[which(grepl("Bin", outfile))+1]))
+sequences <- merge(sequences, branchlength_comparison[which(branchlength_comparison$source %in% "metagenome"),c("label", "branch.length")], by.x="Bin", by.y="label")
+ggplot(sequences, aes(x=branch.length, y=ngap/6099*100)) + geom_point(aes(color=factor(LBM)), size=3) + geom_vline(xintercept=repository_quantile) + geom_hline(yintercept = 25) +
+  xlab("Terminal branch length") + ylab("% gaps in alignment") + geom_smooth(method="lm") + scale_color_manual(values=c("red", "black"), name="LBM?")
+
+robust_model <- lmRob(log10(ngap) ~ branch.length, data=sequences)
+sequences2 <- sequences$LBM[which(sequences$ngap/6099*100 < 25)]
+table(sequences2)
+
+#5. Check the fragmentation of the RP in the bins
+
+#on how many elements are the RP in each bin?
+
+#following bash code run on CAC
+#for genome in $(tail -n +2 processed_files/RP_MAGs_taxonomy.txt | awk {'print $1'}):
+#  do
+#for RP in $(awk {'print $1'} processed_files/ribosomal_proteins/RP_annotations.txt):
+#  do
+#grep ${RP} SAMPLES-SUMMARY-CONCOCT2/bin_by_bin/${genome}/${genome}-gene_calls.txt | awk -v x=${genome} -v y=${RP} -v OFS="\t" '{print x, y, $2}' >> processed_files/ribosomal_proteins/RP_contigs_in_bins.txt
+#done
+#done
+
+RP_frag <- read.csv("E:/hazen_metagenome/processed_files/ribosomal_proteins/RP_contigs_in_bins.txt", header=F, sep="\t")
+RP_unique_contigs <- data.frame(setDT(RP_frag)[, .(count = uniqueN(V3)), by = V1])
+RP_unique_contigs <- RP_unique_contigs[order(as.numeric(RP_unique_contigs$count)),]
+RP_unique_contigs$V1 <- factor(RP_unique_contigs$V1, levels=RP_unique_contigs[order(as.numeric(RP_unique_contigs$count)),1])
+RP_unique_RP <- data.frame(setDT(RP_frag)[, .(count = uniqueN(V2)), by = V1])
+RP_frag2 <- merge(RP_unique_contigs, RP_unique_RP, by="V1")
+RP_frag2$LBM <- ifelse(RP_frag2$V1 %in% do.call(rbind, LBM_n_RP)$Bin,"yes","no")
+
+#how robust are the trees for each protein family:
+#is there a significant connection between the top 10 closest relatives and number of unique RP contigs
+
+fragmented_bins <- as.character(RP_frag2$V1)
+
+new_trees <- list(NULL)
+i = 1
+for (uniqueRP in RP_annotations$Pfam) {
+  treefile <- paste0("E:/hazen_metagenome/SAMPLES-SUMMARY-CONCOCT2/ribosomal_proteins/", uniqueRP, "_trimal.tre")
+  new_trees[[i]] <- ape::read.tree(treefile)
+  i = i+1
+}
+
+outlists <- list(NULL)
+for (i in 1:length(fragmented_bins)) {
+  outlist <- list(NULL)
+  fragmented_bin <- fragmented_bins[i]
+  for (j in 1:16) {
+    binid <- paste0(RP_annotations$Pfam[j],"_",fragmented_bin)
+    if (any(new_trees[[j]]$tip.label %in% binid)) {
+      distancestobin <- cophenetic.phylo(new_trees[[j]])[binid,]
+      distancestobin <- distancestobin[order(as.numeric(distancestobin))]
+      names(distancestobin) <- gsub("^(.*?_).*?","",names(distancestobin))
+      binitself <- names(distancestobin[grep(fragmented_bin, names(distancestobin))])
+      matchnames <- names(head(distancestobin[-grep("Bin", names(distancestobin))],10))
+      outlist[[j]] <- data.frame(append(binitself, matchnames))
+    }
+  }
+  outlist <- tail(sort(table(do.call(rbind, outlist))))
+  outlists[[i]] <- outlist
+}
+
+names(outlists) <- fragmented_bins
+
+outlists2 <- list(NULL)
+for (i in 1:length(outlists)) {
+  percent_top10 <- outlists[[i]]
+  total_RP <- percent_top10[which(names(percent_top10) %in% names(outlists)[i])]
+  percent_top10 <- percent_top10[-grep("Bin", names(percent_top10))]
+  percent_top10 <- round(max(percent_top10)/as.numeric(total_RP)*100,2)
+  if (length(percent_top10) == 0) {percent_top10 <- 0}
+  outlists2[[i]] <- percent_top10
+}
+
+RP_frag2 <- cbind(RP_frag2,do.call(rbind,outlists2))
+colnames(RP_frag2)[5] <- "perc.same.top10"
+
+ggplot(RP_frag2, aes(x=V1, y=count.x, color=factor(count.y))) + geom_point(aes(shape=factor(LBM)), size=5) + xlab("MAG") + ylab("Unique RP contigs (n)") +
+  scale_color_brewer(palette="Set2", name="Ribosomal\nproteins (n)") + scale_shape_manual(values=c(16,17), name="LBM?") +  theme(axis.text.x = element_text(angle = 90, hjust=0))
+RP_fragmentation_model <- lm(log10(count.x) ~ as.numeric(perc.same.top10), data=RP_frag2)
+summary(RP_fragmentation_model)
+
+#6. T-tests of differential abundance of individual marker genes
+sample_data(marker_phylo)$O2yesno <- ifelse(sample_data(marker_phylo)$O2.mgL>0,"1","0")
+mt(marker_phylo, "Site", method="fdr", test="t")
+mt(marker_phylo, "O2yesno", method="fdr", test="t")
+
+#7. check if phyla proportions are similar in matam data
+# get % proportions as fractions
+matam_long <- reshape2::melt(as.matrix(otu_table(phyla_matam)/100))
+colnames(matam_long) <- c("phylum_otu", "sample", "value")
