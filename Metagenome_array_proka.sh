@@ -17,5 +17,3 @@ awk -v x=$BIN -v OFS='\t' 'FNR==NR{if ($8 == 1) pwy[$14]=$14; next} ($1 in pwy) 
 
 MinPath1.4.py -any ~/matti/Hazen_metagenome/anvio/refined/SAMPLES-SUMMARY-CONCOCT2/bin_by_bin/$BIN/$BIN-terms.ec -map ~/bin/MinPath/data/ec2kegg_final -report ~/matti/Hazen_metagenome/anvio/refined/SAMPLES-SUMMARY-CONCOCT2/bin_by_bin/$BIN/$BIN-kegg.minpath -details ~/matti/Hazen_metagenome/anvio/refined/SAMPLES-SUMMARY-CONCOCT2/bin_by_bin/$BIN/$BIN-kegg.details
 awk -v x=$BIN -v OFS='\t' 'FNR==NR{if ($8 == 1) pwy[$14]=$14; next} ($1 in pwy) {print x, $0}' ~/matti/Hazen_metagenome/anvio/refined/SAMPLES-SUMMARY-CONCOCT2/bin_by_bin/$BIN/$BIN-kegg.minpath ~/bin/MinPath/data/kegg_pathway.info > ~/matti/Hazen_metagenome/anvio/refined/SAMPLES-SUMMARY-CONCOCT2/bin_by_bin/$BIN/$BIN-kegg_pathways.txt
-
-egrep "RF[0-9]{4}" ~/matti/Hazen_metagenome/anvio/refined/SAMPLES-SUMMARY-CONCOCT2/bin_by_bin/$BIN/$BIN-gene_calls.txt | cut -f1,2,3,4,5,17 | awk -v x=$BIN -F "/|\t|:"  '{print $6, x, $1, $2, $3, $4, $5}' > ~/matti/Hazen_metagenome/anvio/refined/SAMPLES-SUMMARY-CONCOCT2/bin_by_bin/$BIN/$BIN-resfams.txt

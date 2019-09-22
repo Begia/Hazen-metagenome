@@ -1622,7 +1622,7 @@ process_levels <- rev(c("Cell structure biosynthesis","Fatty acid and lipid bios
   "Fermentation","Energy generation","Energy conservation","Methylotrophic metabolism","Metabolic pathway",
   "N fixation","Nitrification bacteria","Denitrification","DNRA","DNRA Polysulfide reduction",
   "Sulfite reduction to sulfide reversible", "Sulfite reduction to sulfide",
-  "Sulfur compound oxidation","Sulfide oxidation","Sulfite oxidation to sulfate",
+  "Sulfur compound oxidation","Thiosulfate oxidation","Sulfite oxidation to sulfate",
   "Phosphorus uptake", "Polyphosphate processing","Mercury resistance","Mercury methylation","Arsenic resistance",
   "Pb Zn resistance or homeostasis","Cd Pb resistance","Cd Co Cu Pb Zn resistance or homeostasis",
   "Cu resistance","Multimetal resistance regulation"))
