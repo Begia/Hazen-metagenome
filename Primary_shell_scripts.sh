@@ -85,7 +85,7 @@ bowtie2 --threads 24 -x ~/matti/Hazen_metagenome/mapping/all_proka/contigs -1 ~/
 bowtie2 --threads 24 -x ~/matti/Hazen_metagenome/mapping/all_proka/contigs -1 ~/matti/Hazen_metagenome/DNA_3_1P.fastq.gz -2 ~/matti/Hazen_metagenome/DNA_3_2P.fastq.gz --no-unal -S ~/matti/Hazen_metagenome/mapping/DNA_3_proka.sam
 bowtie2 --threads 24 -x ~/matti/Hazen_metagenome/mapping/all_proka/contigs -1 ~/matti/Hazen_metagenome/DNA_5_1P.fastq.gz -2 ~/matti/Hazen_metagenome/DNA_5_2P.fastq.gz --no-unal -S ~/matti/Hazen_metagenome/mapping/DNA_5_proka.sam
 bowtie2 --threads 24 -x ~/matti/Hazen_metagenome/mapping/all_proka/contigs -1 ~/matti/Hazen_metagenome/DNA_11_1P.fastq.gz -2 ~/matti/Hazen_metagenome/DNA_11_2P.fastq.gz --no-unal -S ~/matti/Hazen_metagenome/mapping/DNA_11_proka.sam
-owtie2 --threads 24 -x ~/matti/Hazen_metagenome/mapping/all_proka/contigs -1 ~/matti/Hazen_metagenome/DNA_14_1P.fastq.gz -2 ~/matti/Hazen_metagenome/DNA_14_2P.fastq.gz --no-unal -S ~/matti/Hazen_metagenome/mapping/DNA_14_proka.sam
+bowtie2 --threads 24 -x ~/matti/Hazen_metagenome/mapping/all_proka/contigs -1 ~/matti/Hazen_metagenome/DNA_14_1P.fastq.gz -2 ~/matti/Hazen_metagenome/DNA_14_2P.fastq.gz --no-unal -S ~/matti/Hazen_metagenome/mapping/DNA_14_proka.sam
 bowtie2 --threads 24 -x ~/matti/Hazen_metagenome/mapping/all_proka/contigs -1 ~/matti/Hazen_metagenome/DNA_17_1P.fastq.gz -2 ~/matti/Hazen_metagenome/DNA_17_2P.fastq.gz --no-unal -S ~/matti/Hazen_metagenome/mapping/DNA_17_proka.sam
 samtools view -F 4 -bS ~/matti/Hazen_metagenome/mapping/DNA_1_proka.sam > ~/matti/Hazen_metagenome/mapping/DNA_1_proka-RAW.bam
 samtools view -F 4 -bS ~/matti/Hazen_metagenome/mapping/DNA_3_proka.sam > ~/matti/Hazen_metagenome/mapping/DNA_3_proka-RAW.bam
