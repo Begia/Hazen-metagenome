@@ -1,5 +1,5 @@
 # Hazen metagenome
-Code used in the analysis of data in the article, "Microbial genomes retrieved from High Arctic lake sediments encode for adaptation to cold and oligotrophic environments" by Matti O. Ruuskanen, Graham Colby, Kyra A. St.Pierre, Vincent L. St.Louis,Stéphane Aris-Brosou & Alexandre J. Poulain (https://doi.org/10.1002/lno.11334).
+Code used in the analysis of data in the article, "Microbial genomes retrieved from High Arctic lake sediments encode for adaptation to cold and oligotrophic environments" by Matti O. Ruuskanen, Graham Colby, Kyra A. St.Pierre, Vincent L. St.Louis, Stéphane Aris-Brosou & Alexandre J. Poulain (https://doi.org/10.1002/lno.11334).
 
 ## Included files
 
